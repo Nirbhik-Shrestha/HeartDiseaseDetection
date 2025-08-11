@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heart Disease Prediction</title>
+  <style>
+    :root {
+      --primary: #e63946;
+      --secondary: #457b9d;
+      --light: #f1faee;
+      --dark: #1d3557;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: var(--light);
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background-color: var(--primary);
+      color: white;
+      text-align: center;
+      padding: 20px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    h1 {
+      margin: 0;
+      font-size: 2.5rem;
+    }
+    
+    h2 {
+      color: var(--dark);
+      border-bottom: 2px solid var(--secondary);
+      padding-bottom: 10px;
+      margin-top: 30px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: var(--dark);
+    }
+    
+    input[type="number"], select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    
+    button {
+      background-color: var(--secondary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    
+    button:hover {
+      background-color: var(--dark);
+    }
+    
+    .result {
+      text-align: center;
+      font-size: 1.5rem;
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 8px;
+    }
+    
+    .positive {
+      background-color: rgba(230, 57, 70, 0.2);
+      border: 2px solid var(--primary);
+      color: var(--primary);
+    }
+    
+    .negative {
+      background-color: rgba(69, 123, 157, 0.2);
+      border: 2px solid var(--secondary);
+      color: var(--secondary);
+    }
+    
+    .feature-importance {
+      margin-top: 30px;
+    }
+    
+    .feature-bar {
+      height: 25px;
+      margin: 5px 0;
+      background-color: var(--secondary);
+      border-radius: 3px;
+    }
+    
+    .feature-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+    
+    #loading-spinner {
+      display: none;
+      margin: 20px auto;
+      text-align: center;
+    }
+    
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border-left-color: var(--secondary);
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .disclaimer {
+      font-size: 0.8rem;
+      color: #666;
+      text-align: center;
+      margin-top: 40px;
+      padding: 10px;
+      border-top: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Heart Disease Prediction Tool</h1>
+      <p>Evaluate your risk based on clinical parameters</p>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div class="card">
+      <h2>Enter Your Information</h2>
+      <form id="prediction-form">
+        <div class="form-group">
+          <label for="age">Age:</label>
+          <input type="number" id="age" name="age" min="20" max="100" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="sex">Sex:</label>
+          <select id="sex" name="sex" required>
+            <option value="1">Male</option>
+            <option value="0">Female</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="cp">Chest Pain Type:</label>
+          <select id="cp" name="cp" required>
+            <option value="0">Typical Angina</option>
+            <option value="1">Atypical Angina</option>
+            <option value="2">Non-anginal Pain</option>
+            <option value="3">Asymptomatic</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="trestbps">Resting Blood Pressure (mm Hg):</label>
+          <input type="number" id="trestbps" name="trestbps" min="80" max="200" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="chol">Serum Cholesterol (mg/dl):</label>
+          <input type="number" id="chol" name="chol" min="100" max="600" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="fbs">Fasting Blood Sugar > 120 mg/dl:</label>
+          <select id="fbs" name="fbs" required>
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="restecg">Resting ECG Results:</label>
+          <select id="restecg" name="restecg" required>
+            <option value="0">Normal</option>
+            <option value="1">ST-T Wave Abnormality</option>
+            <option value="2">Left Ventricular Hypertrophy</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="thalach">Maximum Heart Rate Achieved:</label>
+          <input type="number" id="thalach" name="thalach" min="60" max="220" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="exang">Exercise Induced Angina:</label>
+          <select id="exang" name="exang" required>
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="oldpeak">ST Depression Induced by Exercise:</label>
+          <input type="number" id="oldpeak" name="oldpeak" min="0" max="10" step="0.1" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="slope">Slope of Peak Exercise ST Segment:</label>
+          <select id="slope" name="slope" required>
+            <option value="0">Upsloping</option>
+            <option value="1">Flat</option>
+            <option value="2">Downsloping</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="ca">Number of Major Vessels Colored by Fluoroscopy:</label>
+          <select id="ca" name="ca" required>
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="thal">Thalassemia:</label>
+          <select id="thal" name="thal" required>
+            <option value="1">Normal</option>
+            <option value="2">Fixed Defect</option>
+            <option value="3">Reversible Defect</option>
+          </select>
+        </div>
+        
+        <button type="submit">Predict Risk</button>
+      </form>
+    </div>
+    
+    <div id="loading-spinner">
+      <div class="spinner"></div>
+      <p>Processing your data...</p>
+    </div>
+    
+    <div id="result" style="display: none;" class="card result">
+      Loading prediction...
+    </div>
+    
+    <div id="feature-importance" class="card feature-importance" style="display: none;">
+      <h2>Feature Importance</h2>
+      <p>These factors had the most impact on your prediction:</p>
+      <div id="importance-chart"></div>
+    </div>
+    
+    <div class="card">
+      <h2>About This Tool</h2>
+      <p>This heart disease prediction tool uses machine learning to estimate your risk based on clinical parameters. It was trained on the Cleveland Heart Disease dataset and uses a Random Forest classifier algorithm.</p>
+      <p>The model considers multiple factors including age, sex, chest pain type, blood pressure, cholesterol levels, and other clinical measurements to make its prediction.</p>
+    </div>
+    
+    <div class="disclaimer">
+      <p><strong>Disclaimer:</strong> This tool is for educational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment. Always consult with a qualified healthcare provider for medical concerns.</p>
+    </div>
+  </div>
+
+  <script>
+    // Get user-friendly names for features
+    function getFeatureDisplayName(feature) {
+      const displayNames = {
+        'age': 'Age',
+        'sex': 'Gender',
+        'cp': 'Chest Pain Type',
+        'trestbps': 'Resting Blood Pressure',
+        'chol': 'Cholesterol Level',
+        'fbs': 'Fasting Blood Sugar',
+        'restecg': 'Resting ECG',
+        'thalach': 'Maximum Heart Rate',
+        'exang': 'Exercise Induced Angina',
+        'oldpeak': 'ST Depression',
+        'slope': 'ST Segment Slope',
+        'ca': 'Number of Major Vessels',
+        'thal': 'Thalassemia'
+      };
+      return displayNames[feature] || feature;
+    }
+    
+    // Form submission handler
+    document.getElementById('prediction-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Show loading spinner
+      document.getElementById('loading-spinner').style.display = 'block';
+      document.getElementById('result').style.display = 'none';
+      document.getElementById('feature-importance').style.display = 'none';
+      
+      // Gather form data
+      const formData = {
+        age: parseInt(document.getElementById('age').value),
+        sex: parseInt(document.getElementById('sex').value),
+        cp: parseInt(document.getElementById('cp').value),
+        trestbps: parseInt(document.getElementById('trestbps').value),
+        chol: parseInt(document.getElementById('chol').value),
+        fbs: parseInt(document.getElementById('fbs').value),
+        restecg: parseInt(document.getElementById('restecg').value),
+        thalach: parseInt(document.getElementById('thalach').value),
+        exang: parseInt(document.getElementById('exang').value),
+        oldpeak: parseFloat(document.getElementById('oldpeak').value),
+        slope: parseInt(document.getElementById('slope').value),
+        ca: parseInt(document.getElementById('ca').value),
+        thal: parseInt(document.getElementById('thal').value)
+      };
+      
+      // Send data to API
+      fetch('/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Hide loading spinner
+        document.getElementById('loading-spinner').style.display = 'none';
+        
+        // Show result
+        const resultElement = document.getElementById('result');
+        
+        // Display prediction
+        resultElement.textContent = data.prediction === 1 
+          ? `High Risk: The model predicts a likelihood of heart disease. (${(data.probability * 100).toFixed(1)}% probability)` 
+          : `Low Risk: The model does not predict heart disease. (${((1 - data.probability) * 100).toFixed(1)}% probability)`;
+        
+        resultElement.className = data.prediction === 1 
+          ? 'card result positive' 
+          : 'card result negative';
+        
+        resultElement.style.display = 'block';
+        
+        // Display feature importance
+        if (data.feature_importance) {
+          const importanceChart = document.getElementById('importance-chart');
+          importanceChart.innerHTML = '';
+          
+          // Get top 5 features
+          const features = Object.keys(data.feature_importance);
+          const topFeatures = features.slice(0, 5);
+          const maxImportance = Math.max(...topFeatures.map(f => data.feature_importance[f]));
+          
+          topFeatures.forEach(feature => {
+            const importance = data.feature_importance[feature];
+            const percentWidth = (importance / maxImportance) * 100;
+            
+            const featureDisplay = document.createElement('div');
+            
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'feature-label';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = getFeatureDisplayName(feature);
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.textContent = (importance * 100).toFixed(1) + '%';
+            
+            labelDiv.appendChild(nameSpan);
+            labelDiv.appendChild(valueSpan);
+            
+            const barDiv = document.createElement('div');
+            barDiv.className = 'feature-bar';
+            barDiv.style.width = `${percentWidth}%`;
+            
+            featureDisplay.appendChild(labelDiv);
+            featureDisplay.appendChild(barDiv);
+            importanceChart.appendChild(featureDisplay);
+          });
+          
+          document.getElementById('feature-importance').style.display = 'block';
+        }
+      })
+      .catch(error => {
+        // Hide loading spinner
+        document.getElementById('loading-spinner').style.display = 'none';
+        
+        // Show error
+        const resultElement = document.getElementById('result');
+        resultElement.textContent = 'Error: Could not process prediction. Please try again.';
+        resultElement.className = 'card result positive';
+        resultElement.style.display = 'block';
+        
+        console.error('Error:', error);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<div class="sidebar">
+        <div>
+            <div class="profile">
+                <div class="profile-pic">
+                    <img src="../images/user.png" alt="Profile Picture">
+                </div>
+                <h2><?php echo htmlspecialchars($username); ?></h2>
+                <p class="profile-id">Patient no. <?php echo htmlspecialchars($userid); ?></p>
+                <a href='updateProfile.php'><button class="edit-btn">Edit Profile</button></a>
+            </div>
+            <nav class="menu">
+                <ul>
+                    <li><a href="updateProfile.php">My Profile</a></li>
+                    <li><a href="viewHistory.php">My History</a></li>
+                    <li><a href="#">My Calls</a></li>
+                    <li><a href="#">My Prescription</a></li>
+                    <li><a href="appointment.php" class="active">My Appointments</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
