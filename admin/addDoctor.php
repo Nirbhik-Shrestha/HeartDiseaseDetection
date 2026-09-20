@@ -16,14 +16,14 @@ include_once '../connection.php';
 $message = '';
 
 if (isset($_POST['submit'])) {
-    $name = $_POST['dname'];
-    $email = $_POST['demail'];
-    $password = $_POST['dpassword'];
-    $contact = $_POST['dcontact'];
-    $address = $_POST['daddress'];
-    $nmc = $_POST['nmc'];
-    $spid = $_POST['spid'];
-    $myquery = "INSERT INTO doctors(dname, demail, dpassword, dcontact, daddress, nmc, spid) VALUES ('$name', '$email', '$password', '$contact', '$address', '$nmc', '$spid')";
+    $name     = $_POST['dname'];
+    $email    = $_POST['demail'];
+    $password = password_hash($_POST['dpassword'], PASSWORD_BCRYPT);
+    $contact  = $_POST['dcontact'];
+    $address  = $_POST['daddress'];
+    $nmc      = $_POST['nmc'];
+    $spid     = $_POST['spid'];
+    $myquery  = "INSERT INTO doctors(dname, demail, dpassword, dcontact, daddress, nmc, spid) VALUES ('$name', '$email', '$password', '$contact', '$address', '$nmc', '$spid')";
     if (mysqli_query($con, $myquery)) {
         $message = "Doctor Registered!!";
         header("location: doctors.php?msg='doctor registered'");

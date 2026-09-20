@@ -6,18 +6,24 @@ $message = '';
 $error = '<label for="promter" class="form-label"></label>';
 
 if (isset($_POST['login'])) {
-    $email = $_POST['pemail'];
+    $email    = $_POST['pemail'];
     $password = $_POST['ppassword'];
 
     if (empty($email) || empty($password)) {
         echo 'Email or Password is empty!';
         exit;
     } else {
-        $result = $con->query("SELECT * FROM patients WHERE pemail='$email' AND ppassword='$password'");
+        // Fetch row by email only, then verify hash
+        $result = $con->query("SELECT * FROM patients WHERE pemail='$email'");
         if ($result->num_rows == 1) {
-            $_SESSION['user'] = $email;
-            header('Location: index.php');
-            exit();
+            $row = $result->fetch_assoc();
+            if (password_verify($password, $row['ppassword'])) {
+                $_SESSION['user'] = $email;
+                header('Location: index.php');
+                exit();
+            } else {
+                $error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
+            }
         } else {
             $error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
         }
@@ -25,12 +31,12 @@ if (isset($_POST['login'])) {
 }
 
 if (isset($_POST['register'])) {
-    $name = $_POST['pname'];
-    $email = $_POST['pemail'];
-    $password = $_POST['ppassword'];
-    $contact = $_POST['pcontact'];
-    $address = $_POST['paddress'];
-    $dob = $_POST['pdob'];
+    $name     = $_POST['pname'];
+    $email    = $_POST['pemail'];
+    $password = password_hash($_POST['ppassword'], PASSWORD_BCRYPT);
+    $contact  = $_POST['pcontact'];
+    $address  = $_POST['paddress'];
+    $dob      = $_POST['pdob'];
 
     $sql = "SELECT * FROM patients WHERE pemail='$email'";
     $result = mysqli_query($con, $sql);
@@ -44,6 +50,7 @@ if (isset($_POST['register'])) {
         $sql = "INSERT INTO patients (pemail, ppassword, pname, pcontact, paddress, pdob) VALUES ('$email', '$password', '$name', '$contact', '$address', '$dob')";
         $result = mysqli_query($con, $sql);
         if ($result) {
+            $_SESSION['user'] = $email;
             header("Location: index.php");
             exit();
         }
@@ -217,7 +224,7 @@ if (isset($_POST['register'])) {
                 </div>
             </div>
 
-            <p id="forgotPass">Forgot Password? <a href='#'>Click Here!</a></p>
+            <p id="forgotPass">Forgot Password? <a href='forgotPassword.php'>Click Here!</a></p>
 
             <div class="btn-field">
                 <button type="submit" id="signInBtn" name="login">Sign In</button>

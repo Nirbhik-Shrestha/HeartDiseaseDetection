@@ -8,18 +8,19 @@ if (!isset($_SESSION["user"]) || empty($_SESSION["user"])) {
 include("../connection.php");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = $con->real_escape_string($_POST["email"]);
-    $oldPassword = $con->real_escape_string($_POST["old-password"]);
-    $newPassword = $con->real_escape_string($_POST["new-password"]);
+    $email       = $con->real_escape_string($_POST["email"]);
+    $oldPassword = $_POST["old-password"];
+    $newPassword = $_POST["new-password"];
 
     if (!empty($email) && !empty($oldPassword) && !empty($newPassword)) {
-        // Check if the old password matches
+        // Fetch stored hash
         $result = $con->query("SELECT apassword FROM admin WHERE aemail='$email'");
         if ($result->num_rows > 0) {
             $row = $result->fetch_assoc();
-            if ($row["apassword"] === $oldPassword) {
-                // Update the password
-                $sql = "UPDATE admin SET apassword='$newPassword' WHERE aemail='$email'";
+            if (password_verify($oldPassword, $row["apassword"])) {
+                // Hash the new password before saving
+                $hashedNew = password_hash($newPassword, PASSWORD_BCRYPT);
+                $sql = "UPDATE admin SET apassword='$hashedNew' WHERE aemail='$email'";
                 if ($con->query($sql) === TRUE) {
                     echo "<script>alert('Password updated successfully!'); window.location.href = 'index.php';</script>";
                 } else {

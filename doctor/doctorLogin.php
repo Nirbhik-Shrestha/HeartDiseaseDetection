@@ -14,37 +14,29 @@ ini_set('display_errors', 1);
 
 	if(isset($_POST['login'])){
 
-
-        $email=$_POST['demail'];
-        $password=$_POST['dpassword'];
+        $email    = $_POST['demail'];
+        $password = $_POST['dpassword'];
         
         if (empty($email) || empty($password)) {
             echo 'Email or Password is empty!';
-            exit;  // For debugging purposes, you can remove this later.
-        }else{
-			$result= $con->query("SELECT * from doctors where demail='$email' and dpassword='$password'");
-			if($result->num_rows==1){
-				
-					//   Patient dashbord
-					$_SESSION['user']=$email;
-
-					var_dump($_SESSION['user']);
-					
+            exit;
+        } else {
+			// Fetch row by email only, then verify hash
+			$result = $con->query("SELECT * FROM doctors WHERE demail='$email'");
+			if ($result->num_rows == 1) {
+				$row = $result->fetch_assoc();
+				if (password_verify($password, $row['dpassword'])) {
+					$_SESSION['user'] = $email;
 					header('location: index.php');
 					exit();
-
-			}else{
-				$error='<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
+				} else {
+					$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
+				}
+			} else {
+				$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
 			}
-
 		}
-
-        
-
-        
-		
-		
-	}else{
+	} else {
         // $error='<label for="promter" class="form-label">Email or Password is empty!</label>';
     }
 
@@ -150,7 +142,7 @@ ini_set('display_errors', 1);
                 <input type="email" name="demail" placeholder="Email" required>
                 <input type="password" name="dpassword" placeholder="Password" required>
                 <input type="submit" name="login" class="button-25" value="Sign In">
-                <p><a href="#">Forgot your password?</a></p>
+                <p><a href="forgotPassword.php">Forgot your password?</a></p>
             </form>
         </div>
     </div>

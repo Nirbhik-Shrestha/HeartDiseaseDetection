@@ -9,27 +9,27 @@ session_start();
 
 	if(($_POST)){
 
-        $email=$_POST['aemail'];
-        $password=$_POST['apassword'];
+        $email    = $_POST['aemail'];
+        $password = $_POST['apassword'];
         
-        $error='<label for="promter" class="form-label"></label>';
+        $error = '<label for="promter" class="form-label"></label>';
 
-        $result= $con->query("SELECT * from admin where aemail='$email' and apassword='$password'");
-        if($result->num_rows==1){
-			
-				//   Patient dashbord
-				$_SESSION['user']=$email;
-				
+        // Fetch row by email only, then verify hash
+        $result = $con->query("SELECT * FROM `admin` WHERE aemail='$email'");
+        if ($result->num_rows == 1) {
+			$row = $result->fetch_assoc();
+			if (password_verify($password, $row['apassword'])) {
+				$_SESSION['user'] = $email;
 				header('location: index.php');
 				exit();
-
-		}else{
-			$error='<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
+			} else {
+				$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
+			}
+		} else {
+			$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
 		}
-		
-		
-	}else{
-        $error='<label for="promter" class="form-label">&nbsp;</label>';
+	} else {
+        $error = '<label for="promter" class="form-label">&nbsp;</label>';
     }
 
 
@@ -134,7 +134,7 @@ session_start();
                 <input type="email" name="aemail" placeholder="Email" required>
                 <input type="password" name="apassword" placeholder="Password" required>
                 <input type="submit" name="login" class="button-25" value="Sign In">
-                <p><a href="#">Forgot your password?</a></p>
+                <p><a href="forgotPassword.php">Forgot your password?</a></p>
             </form>
         </div>
     </div>

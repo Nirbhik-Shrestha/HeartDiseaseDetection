@@ -190,16 +190,14 @@
 
 if(isset($_POST['update'])){
 
-    $dpassword = $_POST['dpassword'];
+    $newPassword = password_hash($_POST['dpassword'], PASSWORD_BCRYPT);
 
-    $sql = "UPDATE doctors SET dpassword = '$dpassword' WHERE  did = '$userid'";
+    $sql = "UPDATE doctors SET dpassword = '$newPassword' WHERE did = '$userid'";
 
     if(mysqli_query($con, $sql)){
-        $_SESSION['message'] = "Modified successfully !!!";
-        // echo "done";
+        $_SESSION['message'] = "Password updated successfully!";
     }else{
         $_SESSION['message'] = "Please provide correct format !";
-        // echo "No";
     }
 
     header("Location: " . $_SERVER['PHP_SELF']);
