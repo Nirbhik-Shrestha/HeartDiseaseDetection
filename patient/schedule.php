@@ -75,6 +75,17 @@ table th {
     border-radius: 5px;
 }
 
+.book-btn-disabled,
+.book-btn-disabled:hover {
+    background-color: #c9ced3;
+    color: #ffffff;
+    cursor: not-allowed;
+}
+
+.slots-ok   { color: #0b7d56; font-weight: 500; }
+.slots-low  { color: #b26a00; font-weight: 500; }
+.slots-none { color: #9aa0a6; }
+
         .home-button {
             /* position: absolute; */
             top: 20px;
@@ -119,20 +130,32 @@ main{
         
 
         
+    // Every branch reports the session's capacity alongside it, so a partly
+    // booked session is never mistaken for an empty one:
+    //   total_slots = timeslots in the session
+    //   booked_slots = those already taken (by anyone)
+    $select = "SELECT schedule.scid, schedule.sdate, doctors.dname, specialties.sname,
+                      (SELECT COUNT(*) FROM timeslot t WHERE t.scid = schedule.scid) AS total_slots,
+                      (SELECT COUNT(*) FROM timeslot t
+                         INNER JOIN appointment a ON a.tid = t.tid
+                        WHERE t.scid = schedule.scid) AS booked_slots
+               FROM schedule
+               INNER JOIN doctors ON schedule.did = doctors.did
+               INNER JOIN specialties ON doctors.spid = specialties.spid";
+
     if ($_GET && isset($_GET['did'])) {
         $doctor_id = $_GET['did'];
-        $sqlmain = "SELECT * FROM schedule INNER JOIN doctors ON schedule.did = doctors.did WHERE schedule.did = '$doctor_id' AND schedule.sdate >= '$today' ORDER BY schedule.sdate ASC";
+        $sqlmain = "$select WHERE schedule.did = '$doctor_id' AND schedule.sdate >= '$today' ORDER BY schedule.sdate ASC";
     } elseif ($_POST && !empty($_POST["search"])) {
         $keyword = $_POST["search"];
-        $sqlmain = "SELECT * FROM schedule 
-        INNER JOIN doctors ON schedule.did = doctors.did 
-        WHERE schedule.sdate >= '$today' 
-        AND (doctors.dname LIKE '%$keyword%' 
-             OR schedule.title LIKE '%$keyword%' 
-             OR schedule.sdate LIKE '%$keyword%') 
+        $sqlmain = "$select
+        WHERE schedule.sdate >= '$today'
+        AND (doctors.dname LIKE '%$keyword%'
+             OR specialties.sname LIKE '%$keyword%'
+             OR schedule.sdate LIKE '%$keyword%')
         ORDER BY schedule.sdate ASC";
 } else {
-        $sqlmain = "SELECT * FROM schedule INNER JOIN doctors ON schedule.did = doctors.did WHERE schedule.sdate >= '$today' ORDER BY schedule.sdate ASC";
+        $sqlmain = "$select WHERE schedule.sdate >= '$today' ORDER BY schedule.sdate ASC";
     }
 
         $result = $con->query($sqlmain);
@@ -141,13 +164,28 @@ main{
             echo "<div class='table-container'>";
             echo "<h2>Available Sessions</h2>";
             echo "<table>";
-            echo "<thead><tr><th>Doctor</th><th>Date</th><th>Action</th></tr></thead>";
+            echo "<thead><tr><th>Doctor</th><th>Specialty</th><th>Date</th><th>Availability</th><th>Action</th></tr></thead>";
             echo "<tbody>";
             while($row = $result->fetch_assoc()){
+                $total = (int)$row['total_slots'];
+                $free  = $total - (int)$row['booked_slots'];
+
                 echo "<tr>";
-                echo "<td>Dr. ".$row['dname']."</td>";
-                echo "<td>".$row['sdate']."</td>";
-                echo "<td><a href='booking.php?id=".$row['scid']."'><button class='book-btn'>Book Appointment</button></a></td>";
+                echo "<td>Dr. ".htmlspecialchars($row['dname'])."</td>";
+                echo "<td>".htmlspecialchars($row['sname'])."</td>";
+                echo "<td>".htmlspecialchars($row['sdate'])."</td>";
+
+                if ($total === 0) {
+                    echo "<td><span class='slots-none'>No timeslots</span></td>";
+                    echo "<td><button class='book-btn book-btn-disabled' disabled>Unavailable</button></td>";
+                } elseif ($free === 0) {
+                    echo "<td><span class='slots-none'>0 of $total left</span></td>";
+                    echo "<td><button class='book-btn book-btn-disabled' disabled>Fully Booked</button></td>";
+                } else {
+                    $cls = ($free <= 2) ? 'slots-low' : 'slots-ok';
+                    echo "<td><span class='$cls'>$free of $total left</span></td>";
+                    echo "<td><a href='booking.php?id=".$row['scid']."'><button class='book-btn'>Book Appointment</button></a></td>";
+                }
                 echo "</tr>";
             }
             echo "</tbody></table>";

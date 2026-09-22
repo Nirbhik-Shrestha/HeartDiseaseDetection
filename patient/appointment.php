@@ -17,6 +17,9 @@
 
     include("../connection.php");
 
+    // Match the other patient pages, so "today" cannot disagree with the
+    // sessions list when the server clock is in another zone.
+    date_default_timezone_set('Asia/Kathmandu');
     $today = date('Y-m-d');
 
 
@@ -31,15 +34,18 @@
     }
 
     // Fetch sessions from the database
-    $sql = "SELECT appointment.*, patients.pname AS pname, doctors.dname AS dname, timeslot.start_time AS time
-    FROM appointment 
-    INNER JOIN patients ON appointment.pid = patients.pid 
-    INNER JOIN timeslot ON appointment.tid = timeslot.tid 
-    INNER JOIN schedule ON timeslot.scid = schedule.scid 
-    INNER JOIN doctors ON schedule.did = doctors.did 
+    $sql = "SELECT appointment.*, patients.pname AS pname, doctors.dname AS dname,
+                   specialties.sname AS sname,
+                   timeslot.start_time AS start_time, timeslot.end_time AS end_time
+    FROM appointment
+    INNER JOIN patients ON appointment.pid = patients.pid
+    INNER JOIN timeslot ON appointment.tid = timeslot.tid
+    INNER JOIN schedule ON timeslot.scid = schedule.scid
+    INNER JOIN doctors ON schedule.did = doctors.did
+    INNER JOIN specialties ON doctors.spid = specialties.spid
     WHERE patients.pid = $userid
     AND appointment.adate >= '$today'
-    ORDER BY appointment.adate ASC
+    ORDER BY appointment.adate ASC, timeslot.start_time ASC
     ";
     $result = $con->query($sql);
 ?>
@@ -67,6 +73,7 @@
                     <thead>
                         <tr>
                             <th>Doctor</th>
+                            <th>Specialty</th>
                             <th>Date</th>
                             <th>Time</th>
                         </tr>
@@ -75,14 +82,21 @@
                         <?php
                         if($result->num_rows > 0){
                             while($row = $result->fetch_assoc()){
+                                // Show the booked slot as a range, matching the
+                                // labels the patient picked from on booking.php.
+                                $slot = date("h:i A", strtotime($row['start_time']))
+                                      . " - "
+                                      . date("h:i A", strtotime($row['end_time']));
+
                                 echo "<tr>";
                                 echo "<td>Dr. ".htmlspecialchars($row['dname'])."</td>";
+                                echo "<td>".htmlspecialchars($row['sname'])."</td>";
                                 echo "<td>".htmlspecialchars($row['adate'])."</td>";
-                                echo "<td>".htmlspecialchars($row['time'])."</td>";
+                                echo "<td>".htmlspecialchars($slot)."</td>";
                                 echo "</tr>";
                             }
                         } else {
-                            echo "<tr><td colspan='5'>No appointments available</td></tr>";
+                            echo "<tr><td colspan='4'>No appointments available</td></tr>";
                         }
                         ?>
                     </tbody>
