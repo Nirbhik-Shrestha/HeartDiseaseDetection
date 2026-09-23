@@ -1,4 +1,10 @@
-<?php 	session_start(); ?>
+<?php
+    include("../connection.php");
+    include_once("../auth.php");
+
+    $userfetch = requireRole($con, 'patient');
+    $useremail = $userfetch["pemail"];
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -105,28 +111,6 @@ a{
 <body>
     <?php
 
-
-
-	if (!isset($_SESSION["user"])) {
-		$_SESSION["user"] = "";  // Only set to empty if it's not already set
-	}
-
-    if(isset($_SESSION["user"])){
-        if(($_SESSION["user"])==""){
-            header("location: usersLogin.php");
-        }else{
-            $useremail=$_SESSION["user"];
-        }
-
-    }else{
-        header("location: usersLogin.php");
-    }
-    
-
-    //import database
-    include("../connection.php");
-    $userrow = $con->query("SELECT * from patients where pemail='$useremail'");
-    $userfetch=$userrow->fetch_assoc();
     $userid= $userfetch["pid"];
     $username=$userfetch["pname"];
     $keyword = '';

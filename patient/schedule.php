@@ -1,24 +1,13 @@
 <?php
 
-session_start();
-
-        if (!isset($_SESSION["user"])) {
-            $_SESSION["user"] = "";  // Only set to empty if it's not already set
-        }
-
-        if(!isset($_SESSION["user"]) || $_SESSION["user"] == ""){
-            header("location: usersLogin.php");
-            exit();
-        }
-
         date_default_timezone_set('Asia/Kathmandu');
         $today = date('Y-m-d');
 
         include("../connection.php");
+        include_once("../auth.php");
 
-        $useremail = $_SESSION["user"];
-        $userrow = $con->query("SELECT * FROM patients WHERE pemail='$useremail'");
-        $userfetch = $userrow->fetch_assoc();
+        $userfetch = requireRole($con, 'patient');
+        $useremail = $userfetch["pemail"];
         $userid = $userfetch["pid"];
         $username = $userfetch["pname"];
         

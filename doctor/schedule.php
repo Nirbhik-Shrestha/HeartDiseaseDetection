@@ -1,29 +1,13 @@
 <?php
-    session_start();
-
-    // Check if user is logged in
-    if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-        header("location: doctorLogin.php");
-        exit();
-    }
-    $useremail = $_SESSION["user"];
-
     include("../connection.php");
+    include_once("../auth.php");
     include_once("../scheduleFunctions.php");
 
     date_default_timezone_set('Asia/Kathmandu');
     $today = date("Y-m-d");
 
-    $stmt = $con->prepare("SELECT did, dname FROM doctors WHERE demail = ?");
-    $stmt->bind_param("s", $useremail);
-    $stmt->execute();
-    $userfetch = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if (!$userfetch) {
-        header("location: doctorLogin.php");
-        exit();
-    }
+    $userfetch = requireRole($con, 'doctor');
+    $useremail = $userfetch["demail"];
     $userid   = (int)$userfetch["did"];
     $username = $userfetch["dname"];
 

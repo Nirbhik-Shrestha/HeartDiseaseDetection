@@ -1,30 +1,21 @@
 <?php
-session_start();
 	include_once '../connection.php';
+	include_once '../auth.php';
+	appSessionStart();
 
 	$message = '';
 
-	// var_dump($_SESSION);
-
-
 	if(($_POST)){
 
-        $email    = $_POST['aemail'];
-        $password = $_POST['apassword'];
-        
+        $email    = isset($_POST['aemail']) ? $_POST['aemail'] : '';
+        $password = isset($_POST['apassword']) ? $_POST['apassword'] : '';
+
         $error = '<label for="promter" class="form-label"></label>';
 
-        // Fetch row by email only, then verify hash
-        $result = $con->query("SELECT * FROM `admin` WHERE aemail='$email'");
-        if ($result->num_rows == 1) {
-			$row = $result->fetch_assoc();
-			if (password_verify($password, $row['apassword'])) {
-				$_SESSION['user'] = $email;
-				header('location: index.php');
-				exit();
-			} else {
-				$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
-			}
+        if (verifyLogin($con, 'admin', $email, $password)) {
+			loginAs('admin', $email);
+			header('location: index.php');
+			exit();
 		} else {
 			$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
 		}

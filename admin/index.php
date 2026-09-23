@@ -1,29 +1,11 @@
-<?php 
-
-session_start();
-
-if (!isset($_SESSION["user"])) {
-    $_SESSION["user"] = "";  // Only set to empty if it's not already set
-}
-
-if(isset($_SESSION["user"])){
-    if(($_SESSION["user"])==""){
-        header("location: adminLogin.php");
-    }else{
-        $useremail=$_SESSION["user"];
-    }
-
-}else{
-    header("location: adminLogin.php");
-}
-
+<?php
 
 //import database
 include("../connection.php");
-$userrow = $con->query("SELECT * from admin where aemail='$useremail'");
-$userfetch=$userrow->fetch_assoc();
-// $userpassword = $userfetch["apassword"];
-// $userid = $userfetch["aid"]
+include_once("../auth.php");
+
+$userfetch = requireRole($con, 'admin');
+$useremail = $userfetch["aemail"];
 
 ?>
 

@@ -1,29 +1,13 @@
 <?php
-    session_start();
-
-    // Check if user is logged in
-    if (!isset($_SESSION["user"])) {
-        $_SESSION["user"] = "";  // Only set to empty if it's not already set
-    }
-
-    if(isset($_SESSION["user"])){
-        if(($_SESSION["user"])==""){
-            header("location: doctorLogin.php");
-        }else{
-            $useremail=$_SESSION["user"];
-        }
-
-    }else{
-        header("location: doctorLogin.php");
-    }
-
     include("../connection.php");
+    include_once("../auth.php");
 
-    $userrow = $con->query("SELECT * from doctors where demail='$useremail'");
-    $userfetch=$userrow->fetch_assoc();
+    $userfetch = requireRole($con, 'doctor');
+    $useremail = $userfetch["demail"];
     $userid= $userfetch["did"];
     $username=$userfetch["dname"];
 
+    date_default_timezone_set('Asia/Kathmandu');
     $today = date('Y-m-d');
 
     // Matched on did, not on name: two doctors may share a name, which would
@@ -39,13 +23,76 @@
     INNER JOIN schedule ON timeslot.scid = schedule.scid
     INNER JOIN doctors ON schedule.did = doctors.did
     WHERE schedule.did = ?
-    AND appointment.adate >= ?
     ORDER BY appointment.adate ASC, timeslot.start_time ASC
     ";
     $stmt = $con->prepare($sql);
-    $stmt->bind_param("is", $userid, $today);
+    $stmt->bind_param("i", $userid);
     $stmt->execute();
-    $result = $stmt->get_result();
+    $all = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    $upcoming = [];
+    $past = [];
+    foreach ($all as $row) {
+        if ($row['adate'] >= $today) {
+            $upcoming[] = $row;
+        } else {
+            $past[] = $row;
+        }
+    }
+    $past = array_reverse($past); // most recent first
+
+    /** Status badge; a past visit still "booked" is waiting for the doctor. */
+    function statusBadge($row, $today)
+    {
+        if ($row['status'] === 'completed') {
+            return "<span class='status status-completed'>&#10003; Completed</span>";
+        }
+        if ($row['status'] === 'no_show') {
+            return "<span class='status status-no-show'>&#10007; No-show</span>";
+        }
+        return $row['adate'] < $today
+            ? "<span class='status status-pending'>&#9679; Needs update</span>"
+            : "<span class='status status-booked'>&#9679; Booked</span>";
+    }
+
+    function renderAppointmentRows(array $rows, $today, $emptyText)
+    {
+        if (!$rows) {
+            echo "<tr><td colspan='6'>" . $emptyText . "</td></tr>";
+            return;
+        }
+        foreach ($rows as $row) {
+            $start_time = date("h:i A", strtotime($row["start_time"]));
+            $end_time = date("h:i A", strtotime($row["end_time"]));
+            echo "<tr>";
+            echo "<td>".htmlspecialchars($row['pname'])."</td>";
+            echo "<td>".htmlspecialchars($row['adate'])."</td>";
+            echo "<td>".$start_time . ' - ' . $end_time."</td>";
+
+            echo "<td>";
+            if ($row['shared_pdid']) {
+                echo "<a class='assessment-link' href='viewAssessment.php?apid=".(int)$row['apid']."'>View assessment</a>";
+            } else {
+                echo "<span class='muted'>Not shared</span>";
+            }
+            echo "</td>";
+
+            echo "<td>" . statusBadge($row, $today) . "</td>";
+
+            echo "<td>";
+            if ($row['adate'] > $today) {
+                echo "<span class='muted'>From " . htmlspecialchars($row['adate']) . "</span>";
+            } else {
+                $label = ($row['status'] === 'booked' && trim((string)$row['doctor_notes']) === '')
+                    ? 'Record visit' : 'View / edit notes';
+                echo "<a class='assessment-link' href='consultation.php?apid=".(int)$row['apid']."'>" . $label . "</a>";
+            }
+            echo "</td>";
+
+            echo "</tr>";
+        }
+    }
 ?>
 
 <!DOCTYPE html>
@@ -179,6 +226,29 @@
 
         .muted { color: #9aa0a6; }
 
+        .profile-form h2.section-gap { margin-top: 36px; }
+
+        .notice {
+            background: #e6f6f1;
+            border: 1px solid #a6ddc9;
+            border-radius: 5px;
+            padding: 10px 14px;
+            color: #1f6f5c;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .status-booked    { background: #ebf4ff; color: #2c5282; }
+        .status-pending   { background: #fffaf0; color: #9c4221; border: 1px solid #fbd38d; }
+        .status-completed { background: #f0fff4; color: #276749; }
+        .status-no-show   { background: #fff5f5; color: #c53030; }
+
         .assessment-link {
             margin-top: 0;
             font-weight: 500;
@@ -206,7 +276,11 @@
             <a href="index.php">Dashboard</a> &gt; <span>My Appointments</span>
         </div>
         <div class="profile-form">
-            <h2>All your future appointments</h2>
+            <?php if (isset($_GET['msg']) && $_GET['msg'] === 'saved'): ?>
+                <p class="notice">Consultation saved.</p>
+            <?php endif; ?>
+
+            <h2>Today and upcoming</h2>
             <table border="1" cellpadding="10">
                 <thead>
                     <tr>
@@ -214,33 +288,30 @@
                         <th>Date</th>
                         <th>Time</th>
                         <th>Heart Assessment</th>
+                        <th>Status</th>
+                        <th>Consultation</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php
-                        if($result->num_rows > 0){
-                            while($row = $result->fetch_assoc()){
-                                $start_time = date("h:i A", strtotime($row["start_time"]));
-                                $end_time = date("h:i A", strtotime($row["end_time"]));
-                                echo "<tr>";
-                                echo "<td>".htmlspecialchars($row['pname'])."</td>";
-                                echo "<td>".htmlspecialchars($row['adate'])."</td>";
-                                echo "<td>".$start_time . ' - ' . $end_time."</td>";
+                    <?php renderAppointmentRows($upcoming, $today, 'No upcoming appointments'); ?>
+                </tbody>
+            </table>
 
-                                echo "<td>";
-                                if ($row['shared_pdid']) {
-                                    echo "<a class='assessment-link' href='viewAssessment.php?apid=".(int)$row['apid']."'>View assessment</a>";
-                                } else {
-                                    echo "<span class='muted'>Not shared</span>";
-                                }
-                                echo "</td>";
-
-                                echo "</tr>";
-                            }
-                        } else {
-                            echo "<tr><td colspan='4'>No appointments available</td></tr>";
-                        }
-                    ?>
+            <h2 class="section-gap">Past appointments</h2>
+            <p class="muted">Mark each visit as completed or no-show, and add notes for the patient.</p>
+            <table border="1" cellpadding="10">
+                <thead>
+                    <tr>
+                        <th>Patient</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Heart Assessment</th>
+                        <th>Status</th>
+                        <th>Consultation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php renderAppointmentRows($past, $today, 'No past appointments'); ?>
                 </tbody>
             </table>
             <br><br>

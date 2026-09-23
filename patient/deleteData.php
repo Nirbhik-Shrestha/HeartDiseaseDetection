@@ -1,16 +1,9 @@
 <?php
-session_start();
 include("../connection.php");
+include_once("../auth.php");
 
-// Check if the user is logged in
-if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-    header("Location: usersLogin.php");
-    exit();
-}
-
-$useremail = $_SESSION["user"];
-$userrow = $con->query("SELECT * FROM patients WHERE pemail='$useremail'");
-$userfetch = $userrow->fetch_assoc();
+$userfetch = requireRole($con, 'patient');
+$useremail = $userfetch["pemail"];
 $userid = $userfetch["pid"];
 
 // Check if ID is passed

@@ -1,19 +1,10 @@
 <?php
-    session_start();
-
-    // Check if user is logged in
-    if(isset($_SESSION['user'])){
-        if(($_SESSION['user'])==''){
-            header("location: adminLogin.php");
-        }else{
-            $useremail = $_SESSION['user'];
-        }
-    }else{
-        header("location: adminLogin.php");
-    }
-
     // Database connection
     include("../connection.php");
+    include_once("../auth.php");
+
+    $admin = requireRole($con, 'admin');
+    $useremail = $admin['aemail'];
 
     $today = date('Y-m-d');
 
@@ -115,6 +106,7 @@
                             <th>Doctor</th>
                             <th>Date</th>
                             <th>Time</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -128,6 +120,8 @@
                                     echo "<td>".$row['dname']."</td>";
                                     echo "<td>".$row['adate']."</td>";
                                     echo "<td>".$stime_12hr."</td>";
+                                    $statusText = ['booked' => 'Not recorded', 'completed' => 'Completed', 'no_show' => 'No-show'];
+                                    echo "<td>".htmlspecialchars($statusText[$row['status']] ?? $row['status'])."</td>";
                                     echo "</tr>";
                                 }
                             } else {

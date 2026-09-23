@@ -8,27 +8,13 @@
  * A doctor cannot browse readings belonging to patients who have not chosen
  * to share with them.
  */
-session_start();
-
-if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-    header("location: doctorLogin.php");
-    exit();
-}
-$useremail = $_SESSION["user"];
-
 include("../connection.php");
+include_once("../auth.php");
+include_once("../prediction.php");
 date_default_timezone_set('Asia/Kathmandu');
 
-$stmt = $con->prepare("SELECT did, dname FROM doctors WHERE demail = ?");
-$stmt->bind_param("s", $useremail);
-$stmt->execute();
-$userfetch = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-if (!$userfetch) {
-    header("location: doctorLogin.php");
-    exit();
-}
+$userfetch = requireRole($con, 'doctor');
+$useremail = $userfetch["demail"];
 $userid   = (int)$userfetch["did"];
 $username = $userfetch["dname"];
 
@@ -49,54 +35,14 @@ $stmt->bind_param("ii", $apid, $userid);
 $stmt->execute();
 $data = $stmt->get_result()->fetch_assoc();
 $stmt->close();
+
+$assessment = $data ? assessReading($con, $data) : null;
 $con->close();
-
-$prediction = null;
-if ($data) {
-    // Same contract as patient/viewResult.php: hand predict.py a JSON file of
-    // the 13 clinical features and let it render the risk card.
-    $input_data = [
-        "age"      => (int)$data['age'],
-        "sex"      => (int)$data['sex'],
-        "cp"       => (int)$data['cp'],
-        "trestbps" => (int)$data['trestbps'],
-        "chol"     => (int)$data['chol'],
-        "fbs"      => (int)$data['fbs'],
-        "restecg"  => (int)$data['restecg'],
-        "thalach"  => (int)$data['thalach'],
-        "exang"    => (int)$data['exang'],
-        "oldpeak"  => (float)$data['oldpeak'],
-        "slope"    => (int)$data['slope'],
-        "ca"       => (int)$data['ca'],
-        "thal"     => (int)$data['thal'],
-    ];
-
-    $tmpfile = tempnam(sys_get_temp_dir(), 'json_');
-    file_put_contents($tmpfile, json_encode($input_data));
-
-    $python = 'C:\\Users\\nirbh\\AppData\\Local\\Programs\\Python\\Python313\\python.exe';
-    $script = dirname(__DIR__) . '\\patient\\predict.py';
-    $prediction = shell_exec("\"$python\" \"$script\" \"$tmpfile\" 2>&1");
-    unlink($tmpfile);
-}
 
 /** Turn the coded clinical values back into words for the doctor. */
 function describe($field, $value)
 {
-    $maps = [
-        'sex'     => [0 => 'Female', 1 => 'Male'],
-        'cp'      => [0 => 'Typical angina', 1 => 'Atypical angina', 2 => 'Non-anginal pain', 3 => 'Asymptomatic'],
-        'fbs'     => [0 => 'No (&le; 120 mg/dl)', 1 => 'Yes (&gt; 120 mg/dl)'],
-        'restecg' => [0 => 'Normal', 1 => 'ST-T wave abnormality', 2 => 'Left ventricular hypertrophy'],
-        'exang'   => [0 => 'No', 1 => 'Yes'],
-        'slope'   => [0 => 'Upsloping', 1 => 'Flat', 2 => 'Downsloping'],
-        'thal'    => [1 => 'Normal', 2 => 'Fixed defect', 3 => 'Reversible defect'],
-    ];
-
-    if (isset($maps[$field][$value])) {
-        return $maps[$field][$value] . " ($value)";
-    }
-    return $value;
+    return htmlspecialchars(describeAssessmentValue($field, $value));
 }
 ?>
 
@@ -107,6 +53,7 @@ function describe($field, $value)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Heart Assessment</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/risk.css">
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -142,18 +89,6 @@ function describe($field, $value)
         table, th, td { border: 1px solid #cccccc; }
         th, td { padding: 9px; text-align: left; }
         th { background-color: #00a99d; color: #ffffff; }
-
-        /* Risk card styles, mirroring the patient-facing result page. */
-        .risk-card { border-radius: 8px; padding: 20px; }
-        .risk-card.low-risk  { background-color: #e6f6f1; border: 1px solid #a6ddc9; }
-        .risk-card.high-risk { background-color: #fdecea; border: 1px solid #f5c2bd; }
-        .risk-badge-header { display: flex; gap: 12px; align-items: flex-start; }
-        .risk-card h2 { margin: 0 0 4px; font-size: 20px; }
-        .risk-subtitle { margin: 0; color: #555; }
-        .reasons-block { margin-top: 15px; }
-        .reasons-block h3 { font-size: 15px; margin-bottom: 6px; }
-        .reasons-list { margin: 0; padding-left: 20px; }
-        .risk-icon { font-size: 24px; }
 
         .back { text-decoration: none; color: #00a99d; display: inline-block; margin-top: 10px; }
         .back:hover { text-decoration: underline; }
@@ -194,12 +129,11 @@ function describe($field, $value)
 
             <div class="panel">
                 <h2>Model assessment</h2>
-                <?php
-                    // predict.py emits the risk card markup itself.
-                    echo $prediction !== null && trim($prediction) !== ''
-                        ? $prediction
-                        : "<p class='empty'>The prediction model could not be run.</p>";
-                ?>
+                <?php if ($assessment): ?>
+                    <?php renderRiskCard($assessment); ?>
+                <?php else: ?>
+                    <p class='empty'>The prediction model could not be run.</p>
+                <?php endif; ?>
             </div>
 
             <div class="panel">
@@ -221,7 +155,7 @@ function describe($field, $value)
                         <tr><td>ST depression (oldpeak)</td><td><?php echo htmlspecialchars($data['oldpeak']); ?></td></tr>
                         <tr><td>ST segment slope</td><td><?php echo describe('slope', (int)$data['slope']); ?></td></tr>
                         <tr><td>Major vessels coloured</td><td><?php echo (int)$data['ca']; ?></td></tr>
-                        <tr><td>Thalassemia</td><td><?php echo describe('thal', (int)$data['thal']); ?></td></tr>
+                        <tr><td>Thallium stress scan (thal)</td><td><?php echo describe('thal', (int)$data['thal']); ?></td></tr>
                     </tbody>
                 </table>
                 <a class="back" href="appointment.php">Back to appointments</a>

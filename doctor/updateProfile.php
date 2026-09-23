@@ -1,29 +1,11 @@
 <?php
-    session_start();
     ob_start(); // Start output buffering
 
-
-    // Check if user is logged in
-    if (!isset($_SESSION["user"])) {
-		$_SESSION["user"] = "";  // Only set to empty if it's not already set
-	}
-
-    if(isset($_SESSION["user"])){
-        if(($_SESSION["user"])==""){
-            header("location: doctorLogin.php");
-        }else{
-            $useremail=$_SESSION["user"];
-        }
-
-    }else{
-        header("location: doctorLogin.php");
-    }
-
-
     include("../connection.php");
+    include_once("../auth.php");
 
-    $userrow = $con->query("SELECT * from doctors where demail='$useremail'");
-    $userfetch=$userrow->fetch_assoc();
+    $userfetch = requireRole($con, 'doctor');
+    $useremail = $userfetch["demail"];
     $userid= $userfetch["did"];
     $username=$userfetch["dname"];
     $useraddress =$userfetch["daddress"];

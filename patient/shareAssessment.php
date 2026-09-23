@@ -10,33 +10,18 @@
  * Both the reading and the appointment are matched against the session's pid,
  * so a patient can only ever link their own records.
  */
-session_start();
+include("../connection.php");
+include_once("../auth.php");
 
-if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-    header("location: usersLogin.php");
-    exit();
-}
+$patient = requireRole($con, 'patient');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("location: appointment.php");
     exit();
 }
 
-include("../connection.php");
 date_default_timezone_set('Asia/Kathmandu');
 $today = date('Y-m-d');
-
-$useremail = $_SESSION["user"];
-$stmt = $con->prepare("SELECT pid FROM patients WHERE pemail = ?");
-$stmt->bind_param("s", $useremail);
-$stmt->execute();
-$patient = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-if (!$patient) {
-    header("location: usersLogin.php");
-    exit();
-}
 
 $userid = (int)$patient['pid'];
 $apid   = isset($_POST['apid']) ? (int)$_POST['apid'] : 0;

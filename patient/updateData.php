@@ -1,15 +1,10 @@
 <?php
-session_start();
 include("../connection.php");
+include_once("../auth.php");
+include_once("../assessment.php");
 
-if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-    header("Location: usersLogin.php");
-    exit();
-}
-
-$useremail = $_SESSION["user"];
-$userrow = $con->query("SELECT * FROM patients WHERE pemail='$useremail'");
-$userfetch = $userrow->fetch_assoc();
+$userfetch = requireRole($con, 'patient');
+$useremail = $userfetch["pemail"];
 $userid = $userfetch["pid"];
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -28,22 +23,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $check->close();
 
-    // Update logic
+    list($values, $errors) = validateAssessment($_POST);
+    if ($errors) {
+        $_SESSION['assessment_errors'] = $errors;
+        $_SESSION['assessment_old'] = array_intersect_key($_POST, ASSESSMENT_FIELDS);
+        header("Location: editData.php?id=$id");
+        exit();
+    }
+
+    // risk_score is cleared because it belonged to the old values; the
+    // reading is re-scored the next time it is viewed (prediction.php).
     $stmt = $con->prepare("UPDATE patient_data SET 
         age=?, sex=?, cp=?, trestbps=?, chol=?, fbs=?, restecg=?, thalach=?, 
-        exang=?, oldpeak=?, slope=?, ca=?, thal=? 
+        exang=?, oldpeak=?, slope=?, ca=?, thal=?, risk_score=NULL 
         WHERE pdid=? AND pid=?");
 
-    $stmt->bind_param("iiiiiiiidiiiiii",
-        $_POST['age'], $_POST['sex'], $_POST['cp'], $_POST['trestbps'],
-        $_POST['chol'], $_POST['fbs'], $_POST['restecg'], $_POST['thalach'],
-        $_POST['exang'], $_POST['oldpeak'], $_POST['slope'],
-        $_POST['ca'], $_POST['thal'], $id, $userid);
+    $stmt->bind_param("iiiiiiiiidiiiii",
+        $values['age'], $values['sex'], $values['cp'], $values['trestbps'],
+        $values['chol'], $values['fbs'], $values['restecg'], $values['thalach'],
+        $values['exang'], $values['oldpeak'], $values['slope'],
+        $values['ca'], $values['thal'], $id, $userid);
 
     if ($stmt->execute()) {
         header("Location: viewHistory.php?msg=updated");
     } else {
-        echo "<p>Error: " . $stmt->error . "</p>";
+        echo "<p>Error: " . htmlspecialchars($stmt->error) . "</p>";
     }
 
     $stmt->close();

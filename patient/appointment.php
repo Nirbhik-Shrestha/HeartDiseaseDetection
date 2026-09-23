@@ -1,36 +1,22 @@
 <?php
-    session_start();
-
-    if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-        header("location: usersLogin.php");
-        exit();
-    }
-    $useremail = $_SESSION["user"];
-
     include("../connection.php");
+    include_once("../auth.php");
 
     // Match the other patient pages, so "today" cannot disagree with the
     // sessions list when the server clock is in another zone.
     date_default_timezone_set('Asia/Kathmandu');
     $today = date('Y-m-d');
 
-    $stmt = $con->prepare("SELECT pid, pname FROM patients WHERE pemail = ?");
-    $stmt->bind_param("s", $useremail);
-    $stmt->execute();
-    $rowPatient = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if (!$rowPatient) {
-        header("location: usersLogin.php");
-        exit();
-    }
+    $rowPatient = requireRole($con, 'patient');
+    $useremail = $rowPatient['pemail'];
     $userid   = (int)$rowPatient['pid'];
     $username = $rowPatient['pname'];
 
     // One query for both tables: upcoming and past differ only by date, and
     // splitting in PHP keeps the two lists guaranteed consistent.
     // shared_pdid tells us whether a heart-risk reading is attached to the visit.
-    $sql = "SELECT appointment.apid, appointment.adate,
+    $sql = "SELECT appointment.apid, appointment.adate, appointment.status,
+                   appointment.doctor_notes, appointment.notes_updated_at,
                    doctors.dname AS dname, specialties.sname AS sname,
                    timeslot.start_time AS start_time, timeslot.end_time AS end_time,
                    (SELECT pd.pdid FROM patient_data pd
@@ -51,7 +37,9 @@
     $upcoming = [];
     $past     = [];
     while ($row = $result->fetch_assoc()) {
-        if ($row['adate'] >= $today) {
+        // A visit the doctor has already recorded counts as past even on the
+        // day itself, so its notes show up straight away.
+        if ($row['adate'] >= $today && $row['status'] === 'booked') {
             $upcoming[] = $row;
         } else {
             $past[] = $row;
@@ -82,6 +70,7 @@
         'shared'    => ['ok',  'Your heart assessment is now visible to that doctor.'],
         'unshared'  => ['ok',  'Your heart assessment is no longer shared with that doctor.'],
         'past'      => ['bad', 'That appointment has already taken place, so it cannot be cancelled.'],
+        'recorded'  => ['bad', 'Your doctor has already recorded that visit, so it cannot be cancelled.'],
         'notfound'  => ['bad', 'That appointment could not be found.'],
         'error'     => ['bad', 'Something went wrong. Please try again.'],
     ];
@@ -137,6 +126,30 @@
         .muted { color: #9aa0a6; font-size: 0.9em; }
 
         .section-gap { margin-top: 35px; }
+
+        .status {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .status-completed { background: #f0fff4; color: #276749; }
+        .status-no-show   { background: #fff5f5; color: #c53030; }
+
+        .notes-cell { max-width: 360px; }
+        .notes-cell summary { cursor: pointer; color: #00a99d; }
+        .doctor-notes {
+            margin-top: 8px;
+            padding: 10px 12px;
+            background: #f7fafc;
+            border-left: 3px solid #00a99d;
+            border-radius: 4px;
+            line-height: 1.5;
+            white-space: normal;
+        }
+        .notes-date { margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -236,6 +249,8 @@
                             <th>Specialty</th>
                             <th>Date</th>
                             <th>Time</th>
+                            <th>Status</th>
+                            <th>Doctor's notes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -251,10 +266,35 @@
                                 echo "<td>".htmlspecialchars($row['sname'])."</td>";
                                 echo "<td>".htmlspecialchars($row['adate'])."</td>";
                                 echo "<td>".htmlspecialchars($slot)."</td>";
+
+                                echo "<td>";
+                                if ($row['status'] === 'completed') {
+                                    echo "<span class='status status-completed'>&#10003; Completed</span>";
+                                } elseif ($row['status'] === 'no_show') {
+                                    echo "<span class='status status-no-show'>&#10007; Missed</span>";
+                                } else {
+                                    echo "<span class='muted'>Not recorded</span>";
+                                }
+                                echo "</td>";
+
+                                echo "<td class='notes-cell'>";
+                                if (trim((string)$row['doctor_notes']) !== '') {
+                                    echo "<details><summary>Read notes</summary>";
+                                    echo "<div class='doctor-notes'>" . nl2br(htmlspecialchars($row['doctor_notes'])) . "</div>";
+                                    if ($row['notes_updated_at']) {
+                                        echo "<div class='muted notes-date'>Updated "
+                                           . htmlspecialchars(date("d M Y", strtotime($row['notes_updated_at'])))
+                                           . "</div>";
+                                    }
+                                    echo "</details>";
+                                } else {
+                                    echo "<span class='muted'>&mdash;</span>";
+                                }
+                                echo "</td>";
                                 echo "</tr>";
                             }
                         } else {
-                            echo "<tr><td colspan='4'>No past appointments yet.</td></tr>";
+                            echo "<tr><td colspan='6'>No past appointments yet.</td></tr>";
                         }
                         ?>
                     </tbody>

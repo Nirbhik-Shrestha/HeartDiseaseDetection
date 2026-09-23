@@ -1,13 +1,10 @@
 <?php
-session_start();
-
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 	include_once '../connection.php';
-    
-    // var_dump($_SESSION); 
-    // var_dump($_POST);
+	include_once '../auth.php';
+	appSessionStart();
 
 	$message = '';
     $error='<label for="promter" class="form-label"></label>';
@@ -21,17 +18,10 @@ ini_set('display_errors', 1);
             echo 'Email or Password is empty!';
             exit;
         } else {
-			// Fetch row by email only, then verify hash
-			$result = $con->query("SELECT * FROM doctors WHERE demail='$email'");
-			if ($result->num_rows == 1) {
-				$row = $result->fetch_assoc();
-				if (password_verify($password, $row['dpassword'])) {
-					$_SESSION['user'] = $email;
-					header('location: index.php');
-					exit();
-				} else {
-					$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
-				}
+			if (verifyLogin($con, 'doctor', $email, $password)) {
+				loginAs('doctor', $email);
+				header('location: index.php');
+				exit();
 			} else {
 				$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
 			}

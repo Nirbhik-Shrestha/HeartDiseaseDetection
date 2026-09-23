@@ -1,3 +1,10 @@
+<?php
+    include("../connection.php");
+    include_once("../auth.php");
+
+    $admin = requireRole($con, 'admin');
+    $useremail = $admin['aemail'];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,27 +96,12 @@
 </head>
 <body>
     <?php
-    session_start();
-
-    if(isset($_SESSION['user'])){
-        if(($_SESSION['user'])==''){
-            header("location: adminLogin.php");
-        }else{
-            $useremail = $_SESSION['user'];
-        }
-    }else{
-        header("location: adminLogin.php");
-    }
-
-    // Database connection
-    include("../connection.php");
-
     // Fetch all patients from the database
     $sql = "SELECT * FROM patients ORDER BY pname ASC";
     $result = $con->query($sql);
 
     if(isset($_GET['remove'])){
-        $remove_id=$_GET['remove'];
+        $remove_id=(int)$_GET['remove'];
         $deleteSql = "
         DELETE FROM appointment WHERE pid = '$remove_id';
         DELETE FROM patients WHERE pid='$remove_id';

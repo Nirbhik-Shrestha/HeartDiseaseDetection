@@ -1,11 +1,8 @@
 <?php
-session_start();
-if (!isset($_SESSION["user"]) || empty($_SESSION["user"])) {
-    header("Location: adminLogin.php");
-    exit();
-}
-
 include("../connection.php");
+include_once("../auth.php");
+
+requireRole($con, 'admin');
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email       = $con->real_escape_string($_POST["email"]);

@@ -1,19 +1,10 @@
 <?php
-    session_start();
-
-    // Check if user is logged in
-    if(isset($_SESSION['user'])){
-        if(($_SESSION['user'])==''){
-            header("location: adminLogin.php");
-        }else{
-            $useremail = $_SESSION['user'];
-        }
-    }else{
-        header("location: adminLogin.php");
-    }
-
     // Database connection
     include("../connection.php");
+    include_once("../auth.php");
+
+    $admin = requireRole($con, 'admin');
+    $useremail = $admin['aemail'];
 
     $today = date('Y-m-d');
 

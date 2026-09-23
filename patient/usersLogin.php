@@ -1,59 +1,90 @@
 <?php
-session_start();
 include_once '../connection.php';
+include_once '../auth.php';
+appSessionStart();
 
 $message = '';
 $error = '<label for="promter" class="form-label"></label>';
 
+function loginErrorLabel($text)
+{
+    return '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">'
+        . htmlspecialchars($text) . '</label>';
+}
+
+/** Count patients whose $column equals $value (column names are fixed below). */
+function countPatientsWhere($con, $column, $value)
+{
+    $stmt = $con->prepare("SELECT COUNT(*) AS n FROM patients WHERE $column = ?");
+    $stmt->bind_param("s", $value);
+    $stmt->execute();
+    $n = (int)$stmt->get_result()->fetch_assoc()['n'];
+    $stmt->close();
+    return $n;
+}
+
 if (isset($_POST['login'])) {
-    $email    = $_POST['pemail'];
-    $password = $_POST['ppassword'];
+    $email    = isset($_POST['pemail']) ? $_POST['pemail'] : '';
+    $password = isset($_POST['ppassword']) ? $_POST['ppassword'] : '';
 
     if (empty($email) || empty($password)) {
         echo 'Email or Password is empty!';
         exit;
+    } elseif (verifyLogin($con, 'patient', $email, $password)) {
+        loginAs('patient', $email);
+        header('Location: index.php');
+        exit();
     } else {
-        // Fetch row by email only, then verify hash
-        $result = $con->query("SELECT * FROM patients WHERE pemail='$email'");
-        if ($result->num_rows == 1) {
-            $row = $result->fetch_assoc();
-            if (password_verify($password, $row['ppassword'])) {
-                $_SESSION['user'] = $email;
-                header('Location: index.php');
-                exit();
-            } else {
-                $error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
-            }
-        } else {
-            $error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
-        }
+        $error = loginErrorLabel('Wrong credentials: Invalid email or password');
     }
 }
 
 if (isset($_POST['register'])) {
-    $name     = $_POST['pname'];
-    $email    = $_POST['pemail'];
-    $password = password_hash($_POST['ppassword'], PASSWORD_BCRYPT);
-    $contact  = $_POST['pcontact'];
-    $address  = $_POST['paddress'];
-    $dob      = $_POST['pdob'];
+    $name     = trim(isset($_POST['pname']) ? $_POST['pname'] : '');
+    $email    = trim(isset($_POST['pemail']) ? $_POST['pemail'] : '');
+    $rawPass  = isset($_POST['ppassword']) ? $_POST['ppassword'] : '';
+    $contact  = trim(isset($_POST['pcontact']) ? $_POST['pcontact'] : '');
+    $address  = trim(isset($_POST['paddress']) ? $_POST['paddress'] : '');
+    $dob      = isset($_POST['pdob']) ? $_POST['pdob'] : '';
 
-    $sql = "SELECT * FROM patients WHERE pemail='$email'";
-    $result = mysqli_query($con, $sql);
-    $count_email = mysqli_num_rows($result);
+    // The browser checks these too, but that is trivially bypassed, so the
+    // same rules are enforced here before anything touches the database.
+    $dobDate = DateTime::createFromFormat('Y-m-d', $dob);
+    $invalid = null;
+    if ($name === '' || !preg_match("/^[a-z ,.'-]+$/i", $name)) {
+        $invalid = 'Please enter a valid name.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $invalid = 'Please enter a valid email address.';
+    } elseif (strlen($rawPass) < 6) {
+        $invalid = 'Password must be at least 6 characters.';
+    } elseif (!preg_match('/^9[78]\d{8}$/', $contact)) {
+        $invalid = 'Phone number not in proper format.';
+    } elseif ($address === '') {
+        $invalid = 'Please enter your address.';
+    } elseif (!$dobDate || $dobDate->format('Y-m-d') !== $dob || $dob > date('Y-m-d')) {
+        $invalid = 'Please enter a valid date of birth.';
+    }
 
-    $sql = "SELECT * FROM patients WHERE pcontact='$contact'";
-    $result = mysqli_query($con, $sql);
-    $count_contact = mysqli_num_rows($result);
+    $count_email = $count_contact = 0;
+    if ($invalid !== null) {
+        $error = loginErrorLabel($invalid);
+    } else {
+        $count_email   = countPatientsWhere($con, 'pemail', $email);
+        $count_contact = countPatientsWhere($con, 'pcontact', $contact);
+    }
 
-    if ($count_email == 0 && $count_contact == 0) {
-        $sql = "INSERT INTO patients (pemail, ppassword, pname, pcontact, paddress, pdob) VALUES ('$email', '$password', '$name', '$contact', '$address', '$dob')";
-        $result = mysqli_query($con, $sql);
+    if ($invalid === null && $count_email == 0 && $count_contact == 0) {
+        $password = password_hash($rawPass, PASSWORD_BCRYPT);
+        $stmt = $con->prepare("INSERT INTO patients (pemail, ppassword, pname, pcontact, paddress, pdob) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $email, $password, $name, $contact, $address, $dob);
+        $result = $stmt->execute();
+        $stmt->close();
         if ($result) {
-            $_SESSION['user'] = $email;
+            loginAs('patient', $email);
             header("Location: index.php");
             exit();
         }
+        $error = loginErrorLabel('Could not create your account. Please try again.');
     } else {
         if ($count_email > 0) {
             echo '<script>

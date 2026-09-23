@@ -1,27 +1,11 @@
 <?php 
-	
-	session_start();
-
-	if (!isset($_SESSION["user"])) {
-		$_SESSION["user"] = "";  // Only set to empty if it's not already set
-	}
-
-    if(isset($_SESSION["user"])){
-        if(($_SESSION["user"])==""){
-            header("location: doctorLogin.php");
-        }else{
-            $useremail=$_SESSION["user"];
-        }
-
-    }else{
-        header("location: doctorLogin.php");
-    }
-    
 
     //import database
     include("../connection.php");
-    $userrow = $con->query("SELECT * from doctors where demail='$useremail'");
-    $userfetch=$userrow->fetch_assoc();
+    include_once("../auth.php");
+
+    $userfetch = requireRole($con, 'doctor');
+    $useremail = $userfetch["demail"];
     $userid= $userfetch["did"];
     $username=$userfetch["dname"];
 
@@ -285,6 +269,6 @@ main p {
         </div>
     </footer> -->
 
-    <?php include ('../doctorFooter.html') ?>
+    <?php include ('../footer.html') ?>
 </body>
 </html>

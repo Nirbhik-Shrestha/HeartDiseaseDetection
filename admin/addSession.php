@@ -1,14 +1,10 @@
 <?php
-    session_start();
-
-    // Redirect if user is not logged in
-    if (!isset($_SESSION['user']) || empty($_SESSION['user'])) {
-        header("Location: adminLogin.php");
-        exit(); // Stop further execution
-    }
-
     include("../connection.php");
+    include_once("../auth.php");
     include_once("../scheduleFunctions.php");
+
+    $admin = requireRole($con, 'admin');
+    $useremail = $admin['aemail'];
 
     date_default_timezone_set('Asia/Kathmandu');
     $today = date('Y-m-d');

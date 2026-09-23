@@ -1,16 +1,10 @@
 <?php
-session_start();
 include("../connection.php");
+include_once("../auth.php");
+include_once("../prediction.php");
 
-// Check login
-if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-    header("location: usersLogin.php");
-    exit;
-}
-
-$useremail = $_SESSION["user"];
-$userrow = $con->query("SELECT * FROM patients WHERE pemail='$useremail'");
-$userfetch = $userrow ? $userrow->fetch_assoc() : null;
+$userfetch = requireRole($con, 'patient');
+$useremail = $userfetch["pemail"];
 $userid = $userfetch ? $userfetch["pid"] : 0;
 $username = isset($userfetch["pname"]) ? $userfetch["pname"] : "Patient";
 
@@ -35,33 +29,7 @@ if ($result->num_rows === 0) {
 
 $data = $result->fetch_assoc();
 
-// Prepare JSON input for Python
-$input_data = [
-    "age" => (int)$data['age'],
-    "sex" => (int)$data['sex'],
-    "cp" => (int)$data['cp'],
-    "trestbps" => (int)$data['trestbps'],
-    "chol" => (int)$data['chol'],
-    "fbs" => (int)$data['fbs'],
-    "restecg" => (int)$data['restecg'],
-    "thalach" => (int)$data['thalach'],
-    "exang" => (int)$data['exang'],
-    "oldpeak" => (float)$data['oldpeak'],
-    "slope" => (int)$data['slope'],
-    "ca" => (int)$data['ca'],
-    "thal" => (int)$data['thal']
-];
-
-$json = json_encode($input_data);
-$tmpfile = tempnam(sys_get_temp_dir(), 'json_');
-file_put_contents($tmpfile, $json);
-
-// Run Python script
-$python = 'C:\\Users\\nirbh\\AppData\\Local\\Programs\\Python\\Python313\\python.exe';
-$script = __DIR__ . '\\predict.py';
-$cmd = "\"$python\" \"$script\" \"$tmpfile\" 2>&1";
-$output = shell_exec($cmd);
-unlink($tmpfile);
+$assessment = assessReading($con, $data);
 
 // Fetch Recommended Cardiologists safely
 date_default_timezone_set('Asia/Kathmandu');
@@ -89,6 +57,7 @@ try {
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/index.css" />
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../css/risk.css">
     <style>
         .result-container {
             max-width: 850px;
@@ -108,78 +77,6 @@ try {
             border: none;
             padding: 0;
             margin-bottom: 25px;
-        }
-
-        /* Styled Risk Display Cards */
-        .risk-card {
-            border-radius: 12px;
-            padding: 24px 28px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-            margin-bottom: 25px;
-        }
-        .risk-card.high-risk {
-            background: #fff5f5;
-            border: 1px solid #feb2b2;
-            border-left: 6px solid #e53e3e;
-        }
-        .risk-card.low-risk {
-            background: #f0fff4;
-            border: 1px solid #9ae6b4;
-            border-left: 6px solid #38a169;
-        }
-        .risk-badge-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-        .risk-icon {
-            font-size: 2.5rem;
-            line-height: 1;
-        }
-        .risk-title-group h2 {
-            margin: 0 0 6px 0;
-            font-size: 1.45rem;
-            font-weight: 700;
-        }
-        .high-risk .risk-title-group h2 {
-            color: #c53030;
-        }
-        .low-risk .risk-title-group h2 {
-            color: #276749;
-        }
-        .risk-subtitle {
-            margin: 0;
-            font-size: 0.95rem;
-            color: #4a5568;
-            line-height: 1.4;
-        }
-        .reasons-block {
-            background: #ffffff;
-            border-radius: 8px;
-            padding: 20px 24px;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
-        }
-        .reasons-block h3 {
-            margin: 0 0 14px 0;
-            font-size: 1.05rem;
-            color: #2d3748;
-            font-weight: 600;
-        }
-        .reasons-list {
-            margin: 0;
-            padding-left: 22px;
-            list-style-type: disc;
-        }
-        .reasons-list li {
-            margin-bottom: 8px;
-            color: #4a5568;
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-        .reasons-list li:last-child {
-            margin-bottom: 0;
         }
 
         .medical-disclaimer {
@@ -358,7 +255,13 @@ try {
 <main style="padding: 20px 10px; flex: 1;">
 <div class="result-container">
     <h1 class="result-header">Prediction Result</h1>
-    <div class="result-box"><?= $output ?></div>
+    <div class="result-box">
+        <?php if ($assessment): ?>
+            <?php renderRiskCard($assessment); ?>
+        <?php else: ?>
+            <p class="error">The prediction model could not be run. Please try again later.</p>
+        <?php endif; ?>
+    </div>
 
     <!-- Medical Disclaimer -->
     <div class="medical-disclaimer">
@@ -421,6 +324,7 @@ try {
     </div>
 
     <div class="btn-action-group">
+        <a href="downloadAssessment.php?id=<?= (int)$data['pdid'] ?>" class="btn-main" style="background-color: #00897b;">Download PDF</a>
         <a href="viewHistory.php" class="btn-main" style="background-color: #6c757d;">Back to History</a>
         <a href="form.php" class="btn-main">Take Another Assessment</a>
         <a href="index.php" class="btn-main" style="background-color: #2c3e50;">Home Page</a>

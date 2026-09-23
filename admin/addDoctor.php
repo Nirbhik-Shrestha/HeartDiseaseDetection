@@ -1,17 +1,9 @@
 <?php
-session_start();
-
-if (isset($_SESSION['user'])) {
-    if (($_SESSION['user']) == '') {
-        header("location: adminLogin.php");
-    } else {
-        $useremail = $_SESSION['user'];
-    }
-} else {
-    header("location: adminLogin.php");
-}
-
 include_once '../connection.php';
+include_once '../auth.php';
+
+$admin = requireRole($con, 'admin');
+$useremail = $admin['aemail'];
 
 $message = '';
 
@@ -22,12 +14,19 @@ if (isset($_POST['submit'])) {
     $contact  = $_POST['dcontact'];
     $address  = $_POST['daddress'];
     $nmc      = $_POST['nmc'];
-    $spid     = $_POST['spid'];
-    $myquery  = "INSERT INTO doctors(dname, demail, dpassword, dcontact, daddress, nmc, spid) VALUES ('$name', '$email', '$password', '$contact', '$address', '$nmc', '$spid')";
-    if (mysqli_query($con, $myquery)) {
-        $message = "Doctor Registered!!";
-        header("location: doctors.php?msg='doctor registered'");
+    $spid     = (int)$_POST['spid'];
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $message = "Please enter a valid email address.";
     } else {
+        $stmt = $con->prepare("INSERT INTO doctors (dname, demail, dpassword, dcontact, daddress, nmc, spid) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssssi", $name, $email, $password, $contact, $address, $nmc, $spid);
+        if ($stmt->execute()) {
+            $stmt->close();
+            header("location: doctors.php?msg='doctor registered'");
+            exit();
+        }
+        $stmt->close();
         $message = "Data not valid!!";
     }
 }

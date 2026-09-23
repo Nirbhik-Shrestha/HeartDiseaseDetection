@@ -1,27 +1,15 @@
 <?php
-// Session, auth and all data loading happen before any output, so that
-// session_start() and the login redirect below actually take effect.
-session_start();
-
-if (!isset($_SESSION["user"]) || $_SESSION["user"] == "") {
-    header("location: usersLogin.php");
-    exit(); // Stop further execution
-}
-
+// Auth and all data loading happen before any output, so that the login
+// redirect in requireRole() actually takes effect.
 date_default_timezone_set('Asia/Kathmandu');
 $today = date('Y-m-d');
 
 // Import database
 include("../connection.php");
-$useremail = $_SESSION["user"];
-$userrow = $con->query("SELECT * from patients where pemail='$useremail'");
-$userfetch = $userrow->fetch_assoc();
+include_once("../auth.php");
 
-if (!$userfetch) {
-    header("location: usersLogin.php");
-    exit();
-}
-
+$userfetch = requireRole($con, 'patient');
+$useremail = $userfetch["pemail"];
 $userid = $userfetch["pid"];
 $username = $userfetch["pname"];
 

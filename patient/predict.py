@@ -1,3 +1,19 @@
+"""Score heart-disease readings with the trained random forest.
+
+Usage: python predict.py <input.json>
+
+The input file holds one reading (a JSON object) or several (a JSON list),
+each keyed by the patient_data column names. The output, on stdout, is JSON
+in the same shape (object in -> object out, list in -> list out), one result
+per reading:
+
+    {"prediction": 0 or 1, "risk_score": 0.0-1.0, "reasons": ["...", ...]}
+
+risk_score is the forest's probability of "heart disease" (each tree's vote,
+averaged); prediction is 1 exactly when risk_score > 0.5. The web pages
+render the result themselves (see prediction.php in the project root).
+"""
+
 import sys
 import json
 import os
@@ -52,64 +68,54 @@ def get_reasoning(data):
     return reasons
 
 
+def model_features(model, data):
+    """The reading as the model's feature vector.
+
+    The form and patient_data code thal as 1 = normal, 2 = fixed defect,
+    3 = reversible defect, but the training set (heart_cleveland_upload.csv)
+    codes it 0 / 1 / 2. Shift it here so "normal" is not read as a defect.
+    """
+    row = dict(data)
+    row['thal'] = float(data['thal']) - 1
+    return [float(row[name]) for name in model.feature_names]
+
+
+def score(model, data):
+    proba = model.predict_proba(model_features(model, data))
+    return {
+        # Same tie-break as RandomForest.predict(): class 0 wins a 50/50 vote.
+        "prediction": 1 if proba[1] > proba[0] else 0,
+        "risk_score": round(proba[1], 4),
+        "reasons": get_reasoning(data),
+    }
+
+
 def main():
+    if '--help' in sys.argv[1:] or '-h' in sys.argv[1:]:
+        print(__doc__.strip())
+        return 0
+
     if len(sys.argv) < 2:
-        print("<div class='risk-card high-risk'><h2>Error</h2><p>No input data file provided.</p></div>")
-        return
-
-    json_file = sys.argv[1]
-
-    with open(json_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+        print(json.dumps({"error": "No input data file provided."}))
+        return 1
 
     if not os.path.isfile(MODEL_FILE):
-        print("<div class='risk-card high-risk'><h2>Error</h2><p>Model file not found. Run train_model.py first.</p></div>")
-        return
+        print(json.dumps({"error": "Model file not found. Run train_model.py first."}))
+        return 1
+
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        payload = json.load(f)
 
     model = RandomForest.load(MODEL_FILE)
-    features = [float(data[name]) for name in model.feature_names]
 
-    prediction = model.predict(features)
-
-    if prediction == 1:
-        reasons = get_reasoning(data)
-        print("<div class='risk-card high-risk'>")
-        print("  <div class='risk-badge-header'>")
-        print("    <span class='risk-icon'>&#128680;</span>")
-        print("    <div class='risk-title-group'>")
-        print("      <h2>High Risk of Heart Disease</h2>")
-        print("      <p class='risk-subtitle'>Please consult a doctor or cardiologist as soon as possible for a comprehensive evaluation.</p>")
-        print("    </div>")
-        print("  </div>")
-        if reasons:
-            print("  <div class='reasons-block'>")
-            print("    <h3>Key Contributing Risk Factors:</h3>")
-            print("    <ul class='reasons-list'>")
-            for r in reasons:
-                print(f"      <li>{r}</li>")
-            print("    </ul>")
-            print("  </div>")
-        print("</div>")
+    if isinstance(payload, list):
+        result = [score(model, reading) for reading in payload]
     else:
-        reasons = get_reasoning(data)
-        print("<div class='risk-card low-risk'>")
-        print("  <div class='risk-badge-header'>")
-        print("    <span class='risk-icon'>&#9989;</span>")
-        print("    <div class='risk-title-group'>")
-        print("      <h2>Low Risk of Heart Disease</h2>")
-        print("      <p class='risk-subtitle'>Your assessment results indicate a low overall heart disease risk.</p>")
-        print("    </div>")
-        print("  </div>")
-        if reasons:
-            print("  <div class='reasons-block'>")
-            print("    <h3>Health Factors to Keep in Mind:</h3>")
-            print("    <ul class='reasons-list'>")
-            for r in reasons:
-                print(f"      <li>{r}</li>")
-            print("    </ul>")
-            print("  </div>")
-        print("</div>")
+        result = score(model, payload)
 
-        
+    print(json.dumps(result))
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
