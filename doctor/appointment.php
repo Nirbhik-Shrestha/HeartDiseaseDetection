@@ -26,17 +26,26 @@
 
     $today = date('Y-m-d');
 
-    $sql = "SELECT appointment.*, patients.pname AS pname, doctors.dname AS dname, timeslot.start_time, timeslot.end_time
-    FROM appointment 
-    INNER JOIN patients ON appointment.pid = patients.pid 
-    INNER JOIN timeslot ON appointment.tid = timeslot.tid 
-    INNER JOIN schedule ON timeslot.scid = schedule.scid 
+    // Matched on did, not on name: two doctors may share a name, which would
+    // otherwise show one doctor the other's appointments.
+    // shared_pdid is set when the patient chose to share a heart reading.
+    $sql = "SELECT appointment.*, patients.pname AS pname, doctors.dname AS dname,
+                   timeslot.start_time, timeslot.end_time,
+                   (SELECT pd.pdid FROM patient_data pd
+                     WHERE pd.apid = appointment.apid LIMIT 1) AS shared_pdid
+    FROM appointment
+    INNER JOIN patients ON appointment.pid = patients.pid
+    INNER JOIN timeslot ON appointment.tid = timeslot.tid
+    INNER JOIN schedule ON timeslot.scid = schedule.scid
     INNER JOIN doctors ON schedule.did = doctors.did
-    WHERE doctors.dname = '$username'
-    AND appointment.adate >= '$today'
-    ORDER BY appointment.adate ASC
+    WHERE schedule.did = ?
+    AND appointment.adate >= ?
+    ORDER BY appointment.adate ASC, timeslot.start_time ASC
     ";
-    $result = $con->query($sql);
+    $stmt = $con->prepare($sql);
+    $stmt->bind_param("is", $userid, $today);
+    $stmt->execute();
+    $result = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
@@ -168,6 +177,13 @@
             color: #ffffff;
         }
 
+        .muted { color: #9aa0a6; }
+
+        .assessment-link {
+            margin-top: 0;
+            font-weight: 500;
+        }
+
         a {
             text-decoration: none;
             color: #00a99d;
@@ -197,6 +213,7 @@
                         <th>Patient</th>
                         <th>Date</th>
                         <th>Time</th>
+                        <th>Heart Assessment</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -206,13 +223,22 @@
                                 $start_time = date("h:i A", strtotime($row["start_time"]));
                                 $end_time = date("h:i A", strtotime($row["end_time"]));
                                 echo "<tr>";
-                                echo "<td>".$row['pname']."</td>";
-                                echo "<td>".$row['adate']."</td>";
+                                echo "<td>".htmlspecialchars($row['pname'])."</td>";
+                                echo "<td>".htmlspecialchars($row['adate'])."</td>";
                                 echo "<td>".$start_time . ' - ' . $end_time."</td>";
+
+                                echo "<td>";
+                                if ($row['shared_pdid']) {
+                                    echo "<a class='assessment-link' href='viewAssessment.php?apid=".(int)$row['apid']."'>View assessment</a>";
+                                } else {
+                                    echo "<span class='muted'>Not shared</span>";
+                                }
+                                echo "</td>";
+
                                 echo "</tr>";
                             }
                         } else {
-                            echo "<tr><td colspan='3'>No appointments available</td></tr>";
+                            echo "<tr><td colspan='4'>No appointments available</td></tr>";
                         }
                     ?>
                 </tbody>

@@ -8,33 +8,37 @@
     }
 
     include("../connection.php");
+    include_once("../scheduleFunctions.php");
+
+    date_default_timezone_set('Asia/Kathmandu');
+    $today = date('Y-m-d');
+
+    $errors = [];
+    // Keep what was typed so a rejected form can be re-filled instead of cleared.
+    $old = ['did' => '', 'sdate' => '', 'stime' => '', 'nop' => ''];
 
     // Check if form is submitted
     if (isset($_POST['submit'])) {
-        // Sanitize input
-        $title = $_POST["title"];
-        $did = $_POST["did"];
+        $did  = $_POST["did"];
         $date = $_POST["sdate"];
         $time = $_POST["stime"];
-        $nop = $_POST["nop"];
+        $nop  = $_POST["nop"];
 
-        // Insert schedule into database
-        $schedule_sql = "INSERT INTO Schedule (did, sdate) VALUES ($did, '$date')";
-        $con->query($schedule_sql);
-        $scid = $con->insert_id;
+        $old = ['did' => $did, 'sdate' => $date, 'stime' => $time, 'nop' => $nop];
 
-        // Calculate end time (assuming each appointment is one hour long)
-        $start_time = strtotime($time);
-        for ($i = 0; $i < $nop; $i++) {
-            $timeslot_start = date('H:i:s', $start_time + ($i * 3600));
-            $timeslot_end = date('H:i:s', $start_time + (($i + 1) * 3600));
-            $timeslot_sql = "INSERT INTO Timeslot (scid, start_time, end_time) VALUES ($scid, '$timeslot_start', '$timeslot_end')";
-            $con->query($timeslot_sql);
+        $errors = validateSessionInput($con, $did, $date, $time, $nop);
+
+        if (empty($errors)) {
+            $scid = createSession($con, $did, $date, $time, $nop);
+
+            if ($scid) {
+                // Redirect with success message
+                header("Location: schedule.php?action=session-added");
+                exit(); // Stop further execution
+            }
+
+            $errors[] = "Could not save the session. Please try again.";
         }
-
-        // Redirect with success message
-        header("Location: schedule.php?action=session-added&title=$title");
-        exit(); // Stop further execution
     }
 ?>
 <!DOCTYPE html>
@@ -92,6 +96,18 @@
             text-decoration: none;
             margin: 5px 0;
         }
+        .form-errors {
+            background-color: #fdecea;
+            border: 1px solid #f5c2bd;
+            border-radius: 5px;
+            color: #8b2c22;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+        .form-errors ul {
+            margin: 8px 0 0;
+            padding-left: 20px;
+        }
         .btn-primary {
             background-color: #00a99d;
         }
@@ -103,6 +119,16 @@
 <body>
     <div class="container">
         <h1>Add New Session</h1>
+        <?php if (!empty($errors)): ?>
+            <div class="form-errors">
+                <strong>This session could not be created:</strong>
+                <ul>
+                    <?php foreach ($errors as $e): ?>
+                        <li><?php echo htmlspecialchars($e); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
         <form action="" method="POST">
             <div class="form-group">
                 <label for="title">Session Title:</label>
@@ -111,26 +137,31 @@
             <div class="form-group">
                 <label for="did">Doctors:</label>
                 <select id="did" name="did" required>
-                    <option value="" disabled selected hidden>Choose Doctor Name from the list</option>
+                    <option value="" disabled <?php echo $old['did'] === '' ? 'selected' : ''; ?> hidden>Choose Doctor Name from the list</option>
                     <?php
                         $listDoctors = $con->query("SELECT * FROM Doctors ORDER BY dname ASC");
                         while($row = $listDoctors->fetch_assoc()){
-                            echo "<option value=".$row["did"].">".$row["dname"]."</option>";
+                            $sel = ((string)$old['did'] === (string)$row["did"]) ? ' selected' : '';
+                            echo "<option value='".$row["did"]."'$sel>".htmlspecialchars($row["dname"])."</option>";
                         }
                     ?>
                 </select>
             </div>
             <div class="form-group">
                 <label for="nop">No of Patients:</label>
-                <input type="number" id="nop" name="nop" placeholder="Enter No of Patients" required>
+                <input type="number" id="nop" name="nop" min="1" max="<?php echo MAX_SLOTS_PER_SESSION; ?>"
+                       value="<?php echo htmlspecialchars($old['nop']); ?>"
+                       placeholder="1 to <?php echo MAX_SLOTS_PER_SESSION; ?>" required>
             </div>
             <div class="form-group">
                 <label for="sdate">Session Date:</label>
-                <input type="date" id="sdate" name="sdate" required>
+                <input type="date" id="sdate" name="sdate" min="<?php echo $today; ?>"
+                       value="<?php echo htmlspecialchars($old['sdate']); ?>" required>
             </div>
             <div class="form-group">
                 <label for="stime">Session Time:</label>
-                <input type="time" id="stime" name="stime" required>
+                <input type="time" id="stime" name="stime"
+                       value="<?php echo htmlspecialchars($old['stime']); ?>" required>
             </div>
             <button type="submit" name="submit" class="btn btn-primary">Place this Session</button>
             <button type="reset" class="btn btn-secondary">Reset</button>
