@@ -1,172 +1,41 @@
-<html>
-    <head>
-<style>
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 4px;
-        }   
+<link rel="stylesheet" href="css/header.css">
 
-        .header-flex {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-        }
+<!-- Header -->
+<header class="site-header">
+    <a class="site-header__logo" href="index.php"><img src="images/logoo5.png" alt="DaaktarSahab home"></a>
 
-        .logo {
-            display: flex;
-            align-items: center;
-        }
+    <button type="button" class="site-header__toggle" aria-controls="siteMenu" aria-expanded="false" aria-label="Menu">
+        <span></span><span></span><span></span>
+    </button>
 
-        .logo img {
-            position: static;
-            width: 100px;
-            margin-right: 20px;
-        }
+    <div class="site-header__menu" id="siteMenu">
+        <nav class="site-nav" aria-label="Main">
+            <a href="index.php">Home</a>
+            <a href="aboutUs.php">About Us</a>
+            <a href="contactUs.php">Contact Us</a>
+        </nav>
 
-        .logo h1 {
-            margin: 0;
-            color: #00a99d;
-        }
-
-        .logo p {
-            margin: 0;
-            font-size: 14px;
-            color: #666;
-        }
-
-        nav {
-            display: flex;
-            align-items: center;
-        }
-
-        nav ul {
-            list-style: none;
-            display: flex;
-            margin: 0;
-            padding: 0;
-        }
-
-        nav ul li {
-            margin: 0 15px;
-            position: relative;
-        }
-
-        nav ul li a {
-            text-decoration: none;
-            color: #333;
-            font-weight: 500;
-            padding: 8px 15px;
-            display: block;
-            transition: color 0.3s;
-            transition: font-size 0.3s;
-        }
-
-        nav ul li a:hover {
-            color: #00a99d;
-            font-size: larger;
-        }
-
-        .dropbtn{
-            background-color: #1c9fad;
-            border: 1px solid;
-            color: white;
-            border-radius: 5px;
-            width: 80px;
-            display: flex;
-            justify-content: center;
-            transition: background 0.3s, width 0.3s, height 0.3s ;
-        }
-        .dropbtn:hover {
-            background: #0d867c;
-            width: 100px;
-            height: 40px;
-            color: white;
-        }
-
-
-        .dropdown {
-            position: relative;
-        }
-
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
-            z-index: 1;
-            top: 100%;
-            right: -50px;
-            border-radius: 4px;
-            overflow: hidden;
-            width: 250px;
-        }
-
-        .dropdown-content a {
-            color: black;
-            padding: 20px 16px;
-            text-decoration: none;
-            display: block;
-            border-bottom: 1px solid #dee2e6;
-            transition: background-color 0.3s, font-size 0.3s;
-        }
-
-        .dropdown-content ul {
-            display: inline;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-
-        .dropdown-content li:last-child a {
-            border: none;
-        }
-
-        .dropdown-content a:hover {
-            background-color: #f1f1f1;
-            font-size: larger;
-        }
-
-        .dropdown:hover .dropdown-content {
-            display: block;
-        }
-
-        
-        
-        
-</style>
-    </head>
-    <body>
-        <header class="header">
-            <div class="container header-flex">
-                <div class="logo">
-                    <a href="#"><img src="images/logoo5.png" alt="DaaktarSahab"></a>
-                </div>
-                <nav class="navbar">
-                    <ul class="navbar-list">
-                        <li class="navbar-item"><a href="index.php" class="navbar-link">Home</a></li>
-                        <li class="navbar-item"><a href="aboutus.php" class="navbar-link">About Us</a></li>
-                        <li class="navbar-item"><a href="contactus.php" class="navbar-link">Contact Us</a></li>
-                        <li class="navbar-item dropdown">
-                            <a href="#" class="navbar-link dropbtn">Login</a>
-                            <div class="dropdown-content">
-                                <ul>
-                                    <li class="navbar-item"><a href="patient/usersLogin.php" class="navbar-link">As Patient</a></li>
-                                    <li class="navbar-item"><a href="doctor/doctorLogin.php" class="navbar-link">As Doctor</a></li>
-                                    <li class="navbar-item"><a href="admin/adminLogin.php" class="navbar-link">As Admin</a></li>
-                                </ul>
-                            </div>
-                        </li>
-                    </ul>
-                </nav>
+        <div class="site-account">
+            <div class="account-menu">
+                <button type="button" class="account-menu__btn account-menu__btn--text">Login</button>
+                <p class="account-menu__heading">Log in</p>
+                <ul class="account-menu__list">
+                    <li><a href="patient/usersLogin.php">As Patient</a></li>
+                    <li><a href="doctor/doctorLogin.php">As Doctor</a></li>
+                    <li><a href="admin/adminLogin.php">As Admin</a></li>
+                </ul>
             </div>
-        </header>
-    </body>
-</html>
+        </div>
+    </div>
+</header>
+
+<script>
+    (function () {
+        var toggle = document.querySelector('.site-header__toggle');
+        var menu = document.getElementById('siteMenu');
+        toggle.addEventListener('click', function () {
+            var open = menu.classList.toggle('is-open');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    })();
+</script>

@@ -26,98 +26,129 @@
             flex: 1;
         }
 
+        /*
+         * Site footer. Every rule is scoped to .footer and states its own
+         * values, so the footer looks the same whatever page includes it.
+         */
         .footer {
-            background: #333;
-            color: white;
-            padding: 40px 0;
-            margin-top: 40px;
             width: 100%;
+            margin-top: 40px;
+            padding: 40px 0;
+            background: #0f2233;
+            color: #b9c7d3;
         }
 
-        .footer .container {
+        /* The footer uses the site font on every page. */
+        .footer,
+        .footer * {
+            font-family: 'Platin', Times, serif;
+        }
+
+        .footer .footer-inner {
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             align-items: flex-start;
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
-            flex-wrap: wrap;
+            box-sizing: border-box;
         }
 
-        .footer-left, .footer-right {
+        .footer .footer-left,
+        .footer .footer-right {
             flex: 1;
             min-width: 300px;
             margin: 10px;
-            height: 100%;
             align-self: flex-end;
         }
-        
-        .footer-logo {
+
+        .footer .footer-logo {
+            display: block;
+            height: 80px;
+            width: auto;
             max-width: 150px;
-            margin-bottom: 20px;
+            margin: 0 0 20px;
+            padding: 8px;
+            border-radius: 14px;
+            background: #fff;
+            box-sizing: border-box;
         }
-        
-        .footer-info {
+
+        .footer .footer-info {
             text-align: left;
         }
-        
-        .footer-info h3 {
-            margin-bottom: 15px;
+
+        .footer .footer-info h3 {
+            margin: 0 0 15px;
+            color: #fff;
             font-size: 1.5em;
+            font-weight: 700;
         }
-        
-        .footer-info p {
+
+        .footer .footer-info p {
             margin: 5px 0;
+            color: #b9c7d3;
+            font-size: 15.5px;
         }
-        
-        .footer-links {
-            list-style: none;
+
+        .footer .footer-links {
+            margin: 0;
             padding: 0;
+            list-style: none;
             text-align: right;
         }
-        
-        .footer-links li {
+
+        .footer .footer-links li {
             margin: 10px 0;
         }
-        
-        .footer-links a {
-            color: white;
+
+        .footer .footer-links a {
+            color: #d6e0e8;
+            font-size: 16px;
             text-decoration: none;
-            font-size: 1.1em;
             transition: color 0.3s ease;
         }
-        
-        .footer-links a:hover {
-            color: #00a99d;
+
+        .footer .footer-links a:hover {
+            color: #5fd6cc;
         }
-        
-        .footer-bottom {
-            text-align: center;
+
+        .footer .footer-bottom {
             margin-top: 30px;
             padding-top: 20px;
-            border-top: 1px solid #444;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: #0f2233;
+            text-align: center;
         }
-        
-        .footer-bottom p {
+
+        .footer .footer-bottom p {
             margin: 0;
-            font-size: 0.9em;
+            color: #8aa0b2;
+            font-size: 14px;
         }
-        
+
         @media (max-width: 685px) {
-            .footer .container {
+            .footer .footer-inner {
                 flex-direction: column;
+                align-items: stretch;
                 text-align: center;
             }
-            
-            .footer-info {
-                text-align: center;
-            }
-            
-            .footer-links {
-                text-align: center;
-            }
-            .footer-left, .footer-right {
+
+            .footer .footer-left,
+            .footer .footer-right {
                 width: 100%;
+                min-width: 0;
+                margin: 10px 0;
+            }
+
+            .footer .footer-logo {
+                margin: 0 auto 20px;
+            }
+
+            .footer .footer-info,
+            .footer .footer-links {
+                text-align: center;
             }
         }
         </style>
@@ -132,7 +163,7 @@
         ? '../' : '';
 ?>
 <footer class="footer">
-    <div class="container">
+    <div class="footer-inner">
         <div class="footer-left">
             <img src="<?= $footerBase ?>images/logoo5.png" alt="DaaktarSahab Logo" class="footer-logo">
             <div class="footer-info">

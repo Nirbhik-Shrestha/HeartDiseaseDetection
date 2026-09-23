@@ -173,7 +173,7 @@ function renderAssessmentFields(array $values = [])
     $e = function ($s) { return htmlspecialchars((string)$s, ENT_QUOTES); };
 
     foreach (ASSESSMENT_GROUPS as $groupKey => $group) {
-        echo '<fieldset class="field-group">';
+        echo '<fieldset class="field-group" id="group-' . $groupKey . '">';
         echo '<legend>' . $e($group['title']) . '</legend>';
         echo '<p class="group-intro">' . $e($group['intro']) . '</p>';
 
@@ -184,7 +184,9 @@ function renderAssessmentFields(array $values = [])
             $id = 'f-' . $name;
             $current = array_key_exists($name, $values) ? (string)$values[$name] : '';
 
-            echo '<div class="field">';
+            // Questions with long help text get the full width in two-column layouts.
+            $wide = strlen($field['help']) > 150 ? ' field--wide' : '';
+            echo '<div class="field' . $wide . '">';
             echo '<label for="' . $id . '">' . $e($field['label'])
                 . (isset($field['unit']) ? ' <span class="unit">(' . $e($field['unit']) . ')</span>' : '')
                 . '</label>';

@@ -1,196 +1,51 @@
-<html>
-    <head>
-        <style>
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 20px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            height: 12vh;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-        }
+<link rel="stylesheet" href="../css/header.css">
 
-        .logo img {
-            position: static;
-            width: 80px;
-            margin-left: 20px;
-        }
+<!-- Header -->
+<header class="site-header site-header--patient">
+    <a class="site-header__logo" href="index.php"><img src="../images/logoo5.png" alt="DaaktarSahab home"></a>
 
-        .logo h1 {
-            margin: 0;
-            color: #00a99d;
-        }
+    <button type="button" class="site-header__toggle" aria-controls="siteMenu" aria-expanded="false" aria-label="Menu">
+        <span></span><span></span><span></span>
+    </button>
 
-        .logo p {
-            margin: 0;
-            font-size: 14px;
-            color: #666;
-        }
-
-        nav {
-            position: absolute;
-            right: 200px;
-        }
-        nav ul {
-            list-style: none;
-            display: flex;
-            margin: 0;
-            padding: 0;
-        }
-        nav ul li {
-            margin: 0 10px;
-            font-size: 20px;
-        }
-        nav ul li a {
-            text-decoration: none;
-            color: #333;
-            font-weight: 500;
-            transition: color 0.3s;
-            transition: font-size 0.3s;
-        }
-
-        nav ul li a:hover {
-            color: #00a99d;
-            font-size: larger;
-        }
-        .profile {
-            display: flex;
-            align-items: center;
-            padding: 14px;
-        }
-        .profile img {
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            margin-right: 25px;
-            cursor: pointer;
-        }
-        .profile button {
-            display: contents;
-        }
-        .profile-container {
-            position: absolute;
-            right: 100px;
-        }
-
-        .dropbtn {
-            background-color: #3498db;
-            color: white;
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-        }
-        .logoutbtn{
-            transition: background 0.3s;
-        }
-
-        .logoutbtn:hover {
-            background: #007d73;
-            /* width: 100px;
-            height: 40px; */
-        }
-
-        /* Dropdown content (hidden by default) */
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-            top: 60px;
-            right: 0;
-            width: 250px;
-        }
-
-        /* Links inside the dropdown */
-        .dropdown-content a {
-            color: black;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            transition: background-color 0.3s, font-size 0.3s;
-
-        }
-
-        /* Change color of dropdown links on hover */
-        .dropdown-content a:hover {
-            background-color: #f1f1f1;
-            font-size: larger;
-        }
-
-        /* Show the dropdown menu when the user hovers over the dropdown button */
-        .profile-container:hover .dropdown-content {
-            display: block;
-        }
-
-        /* Change the background color of the dropdown button when the dropdown content is shown */
-        .profile-container:hover .dropbtn {
-            background-color: #2980b9;
-        }
-
-        .dropdown-content ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        .dropdown-content li:first-child{
-            border-bottom: 1px solid #dee2e6 !important;
-        }
-
-        
-        button {
-            background-color: #00a99d;
-            color: #fff;
-            border: none;
-            padding: 14px 24px;
-            cursor: pointer;
-            border-radius: 10px;
-        }
-        </style>
-    </head>
-    <body>
-
-        <!-- Header -->
-    <header>
-        <div class="logo">
-            <a href="index.php"><img src="../images/logoo5.png" alt="HAMRO DOCTOR"></a>
-            <!-- <p>Always Caring | Always Here</p> -->
-        </div>
-        <nav>
-            <ul>
-                <li><a href="index.php">Home</a></li>
-                <li><a href="doctors.php">Doctors</a></li>
-                <li><a href="schedule.php">Schedules</a></li>
-                <li><a href="form.php">Heart Problems</a></li>
-            </ul>
+    <div class="site-header__menu" id="siteMenu">
+        <nav class="site-nav" aria-label="Main">
+            <?php
+                // Marks the link for the page being viewed, for screen readers and styling.
+                $headerLinks = ['index.php' => 'Home', 'doctors.php' => 'Doctors', 'schedule.php' => 'Schedules', 'form.php' => 'Heart Problems'];
+                $headerPage = basename($_SERVER['SCRIPT_NAME']);
+                foreach ($headerLinks as $href => $label) {
+                    echo '<a href="' . $href . '"' . ($href === $headerPage ? ' aria-current="page"' : '') . '>' . $label . '</a>';
+                }
+            ?>
         </nav>
-        <div class="profile-container">
-            <div class="profile">
-                <button class="dropbtn"><img src="../images/user.png" alt="Profile Picture"></button>
-            </div>
-            <div class="dropdown-content">
-                <ul>
-                    <li><a href="updateProfile.php"><strong><?php echo ($username)?></strong></a></li>
+
+        <div class="site-account">
+            <div class="account-menu">
+                <button type="button" class="account-menu__btn" aria-label="Account menu">
+                    <img src="../images/user.png" alt="">
+                </button>
+                <p class="account-menu__heading">Your account</p>
+                <ul class="account-menu__list">
+                    <li><a href="updateProfile.php"><strong><?php echo htmlspecialchars($username) ?></strong></a></li>
                     <li><a href="appointment.php">My Appointments</a></li>
                     <li><a href="viewHistory.php">My Prediction History</a></li>
                     <li><a href="#">My Questions</a></li>
                     <li><a href="#">My Medical Reports</a></li>
                 </ul>
             </div>
+            <a class="logout-btn" href="../logout.php">Logout</a>
         </div>
-            <div class="logoutbtn">
-                <a href="../logout.php"><button class="logoutbtn">Logout</button></a> 
-            </div>
-    </header>
+    </div>
+</header>
 
-
-    </body>
-</html>
+<script>
+    (function () {
+        var toggle = document.querySelector('.site-header__toggle');
+        var menu = document.getElementById('siteMenu');
+        toggle.addEventListener('click', function () {
+            var open = menu.classList.toggle('is-open');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    })();
+</script>
