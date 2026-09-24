@@ -87,165 +87,127 @@ if ($appointment && $_SERVER['REQUEST_METHOD'] === 'POST') {
 $con->close();
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consultation</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>Consultation - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f7f6;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            min-height: 100vh;
-        }
-        .container { display: flex; flex: 1; }
-        .main-content {
-            flex-grow: 1;
-            background-color: #ffffff;
-            padding: 30px;
-            box-sizing: border-box;
-        }
-        .main-content h1 { margin-top: 0; font-size: 24px; color: #333333; }
-        .breadcrumb { margin-bottom: 20px; color: #777777; }
-        .breadcrumb a { text-decoration: none; color: #00a99d; }
-
-        .panel {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 25px;
-            max-width: 760px;
-        }
-        .panel h2 { margin-top: 0; font-size: 18px; }
-        .meta p { margin: 4px 0; }
-
-        .form-group { margin-bottom: 18px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 6px; }
-        .form-group select,
-        .form-group textarea {
+        .site-page .field textarea {
             width: 100%;
-            padding: 9px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            font: inherit;
+            min-height: 200px;
+            padding: 12px 14px;
+            border: 1px solid #cfdbe3;
+            border-radius: 10px;
+            background: #fff;
+            color: #12304a;
+            font-size: 16px;
+            line-height: 1.5;
+            resize: vertical;
         }
-        .form-group textarea { min-height: 180px; resize: vertical; }
-        .hint { font-size: 13px; color: #777; margin: 6px 0 0; }
 
-        .save-btn {
-            background-color: #00a99d;
-            color: #ffffff;
-            border: none;
-            padding: 10px 22px;
-            cursor: pointer;
-            border-radius: 5px;
-            font-size: 15px;
+        .site-page .field textarea:focus {
+            outline: none;
+            border-color: #00a99d;
+            box-shadow: 0 0 0 4px rgba(0, 169, 157, 0.18);
         }
-        .save-btn:hover { background-color: #008f85; }
-
-        .errors {
-            background: #fdecea;
-            border: 1px solid #f5c2bd;
-            border-radius: 5px;
-            padding: 10px 14px;
-            color: #8b2c22;
-            margin-bottom: 18px;
-        }
-        .errors ul { margin: 6px 0 0 18px; padding: 0; }
-
-        .back { text-decoration: none; color: #00a99d; display: inline-block; margin-top: 6px; }
-        .back:hover { text-decoration: underline; }
-        .muted { color: #777; }
     </style>
 </head>
-<body>
-<div class="container">
-<?php include("sidebar.php"); ?>
-    <div class="main-content">
-        <h1>Consultation</h1>
-        <div class="breadcrumb">
-            <a href="index.php">Dashboard</a> &gt;
-            <a href="appointment.php">My Appointments</a> &gt;
-            <span>Consultation</span>
-        </div>
+<body class="site-page">
 
-        <?php if (!$appointment): ?>
-            <div class="panel">
-                <p>No appointment was found in your schedule with that reference.</p>
-                <a class="back" href="appointment.php">Back to appointments</a>
-            </div>
-        <?php else: ?>
-            <div class="panel meta">
-                <h2>Appointment</h2>
-                <p><strong>Patient:</strong> <?= htmlspecialchars($appointment['pname']) ?></p>
-                <p><strong>Date of birth:</strong> <?= htmlspecialchars($appointment['pdob']) ?></p>
-                <p><strong>When:</strong>
-                    <?= htmlspecialchars($appointment['adate']) ?> at
-                    <?= date("h:i A", strtotime($appointment['start_time'])) ?> -
-                    <?= date("h:i A", strtotime($appointment['end_time'])) ?>
-                </p>
-                <p><strong>Heart assessment:</strong>
-                    <?php if ($appointment['shared_pdid']): ?>
-                        <a class="back" style="margin: 0" href="viewAssessment.php?apid=<?= (int)$appointment['apid'] ?>">View shared assessment</a>
-                    <?php else: ?>
-                        <span class="muted">Not shared by the patient</span>
-                    <?php endif; ?>
-                </p>
-            </div>
+<?php include("../doctorHeader.html"); ?>
 
-            <div class="panel">
-                <h2>Record the visit</h2>
-
-                <?php if ($errors): ?>
-                    <div class="errors" role="alert">
-                        <strong>Not saved:</strong>
-                        <ul>
-                            <?php foreach ($errors as $error): ?>
-                                <li><?= htmlspecialchars($error) ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <?php if (!$canRecord): ?>
-                    <p class="muted">This appointment is on <?= htmlspecialchars($appointment['adate']) ?>. You can record the visit from that day.</p>
-                <?php else: ?>
-                    <form method="post" action="consultation.php">
-                        <input type="hidden" name="apid" value="<?= (int)$appointment['apid'] ?>">
-
-                        <div class="form-group">
-                            <label for="status">Status</label>
-                            <select id="status" name="status" required>
-                                <?php foreach (CONSULTATION_STATUSES as $value => $label): ?>
-                                    <option value="<?= $value ?>" <?= $appointment['status'] === $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="doctor_notes">Consultation notes</label>
-                            <textarea id="doctor_notes" name="doctor_notes" maxlength="<?= MAX_NOTES_LENGTH ?>"
-                                placeholder="Findings, advice, prescriptions, tests to arrange, follow-up..."><?= htmlspecialchars((string)$appointment['doctor_notes']) ?></textarea>
-                            <p class="hint">The patient can read these notes on their appointments page.</p>
-                            <?php if ($appointment['notes_updated_at']): ?>
-                                <p class="hint">Last updated <?= htmlspecialchars(date('j M Y, g:i A', strtotime($appointment['notes_updated_at']))) ?>.</p>
-                            <?php endif; ?>
-                        </div>
-
-                        <button type="submit" class="save-btn">Save</button>
-                    </form>
-                <?php endif; ?>
-
-                <p><a class="back" href="appointment.php">Back to appointments</a></p>
-            </div>
-        <?php endif; ?>
+<section class="page-hero page-hero--doctor">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">Consultation</span>
+        <h1><?= $appointment ? 'Record the visit' : 'Consultation' ?></h1>
+        <p>Mark whether the visit took place and write notes. The patient can read your notes on their appointments page.</p>
     </div>
-</div>
+</section>
+
+<main class="page-body">
+<?php if (!$appointment): ?>
+    <section class="panel">
+        <div class="empty-state">
+            <p>No appointment was found in your schedule with that reference.</p>
+            <a href="appointment.php" class="btn btn-light">Back to appointments</a>
+        </div>
+    </section>
+<?php else: ?>
+    <?php if ($errors): ?>
+        <div class="notice notice-bad" role="alert">
+            <strong>Not saved:</strong>
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= htmlspecialchars($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <div class="page-grid">
+        <section class="panel">
+            <div class="panel__head">
+                <h2 class="panel__title">Visit record</h2>
+            </div>
+
+            <?php if (!$canRecord): ?>
+                <div class="empty-state">
+                    <p>This appointment is on <?= date('l j F Y', strtotime($appointment['adate'])) ?>. You can record the visit from that day.</p>
+                    <a href="appointment.php" class="btn btn-light">Back to appointments</a>
+                </div>
+            <?php else: ?>
+                <form method="post" action="consultation.php">
+                    <input type="hidden" name="apid" value="<?= (int)$appointment['apid'] ?>">
+
+                    <div class="field">
+                        <label for="status">Status</label>
+                        <select id="status" name="status" required>
+                            <?php foreach (CONSULTATION_STATUSES as $value => $label): ?>
+                                <option value="<?= $value ?>" <?= $appointment['status'] === $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="doctor_notes">Consultation notes</label>
+                        <textarea id="doctor_notes" name="doctor_notes" maxlength="<?= MAX_NOTES_LENGTH ?>"
+                            placeholder="Findings, advice, prescriptions, tests to arrange, follow-up..."><?= htmlspecialchars((string)$appointment['doctor_notes']) ?></textarea>
+                        <p class="hint">The patient can read these notes on their appointments page.</p>
+                        <?php if ($appointment['notes_updated_at']): ?>
+                            <p class="hint">Last updated <?= htmlspecialchars(date('j M Y, g:i A', strtotime($appointment['notes_updated_at']))) ?>.</p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="btn-row">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <a href="appointment.php" class="btn btn-light">Cancel</a>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </section>
+
+        <aside class="panel">
+            <p class="panel__label">Appointment</p>
+            <ul class="detail-list">
+                <li><span>Patient</span><strong><?= htmlspecialchars($appointment['pname']) ?></strong></li>
+                <li><span>Date of birth</span><strong><?= date('j M Y', strtotime($appointment['pdob'])) ?></strong></li>
+                <li><span>Date</span><strong><?= date('D j M Y', strtotime($appointment['adate'])) ?></strong></li>
+                <li><span>Time</span><strong><?= date("g:i A", strtotime($appointment['start_time'])) ?> - <?= date("g:i A", strtotime($appointment['end_time'])) ?></strong></li>
+            </ul>
+            <div style="margin-top: 16px">
+                <?php if ($appointment['shared_pdid']): ?>
+                    <a class="btn btn-light btn-block" href="viewAssessment.php?apid=<?= (int)$appointment['apid'] ?>">View shared heart check</a>
+                <?php else: ?>
+                    <span class="badge badge-muted">Heart check not shared by the patient</span>
+                <?php endif; ?>
+            </div>
+        </aside>
+    </div>
+<?php endif; ?>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

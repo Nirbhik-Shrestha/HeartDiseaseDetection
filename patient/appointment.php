@@ -82,226 +82,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appointment</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link href="../css/patientIndex.css" rel="stylesheet">
+    <title>My Appointments - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        .notice {
-            padding: 12px 16px;
-            border-radius: 5px;
-            margin-bottom: 20px;
+        .share-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
-        .notice-ok  { background-color: #e6f6f1; border: 1px solid #a6ddc9; color: #0b7d56; }
-        .notice-bad { background-color: #fdecea; border: 1px solid #f5c2bd; color: #8b2c22; }
 
-        .cancel-btn {
-            background-color: #ffffff;
-            color: #b23c3c;
-            border: 1px solid #e0b4b4;
-            padding: 6px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        .cancel-btn:hover { background-color: #fdecea; }
-
-        .share-form { display: flex; gap: 6px; align-items: center; }
         .share-form select {
-            padding: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 0.85em;
-            max-width: 150px;
+            height: 38px;
+            max-width: 170px;
+            padding: 0 10px;
+            border: 1px solid #cfdbe3;
+            border-radius: 8px;
+            background: #fff;
+            color: #12304a;
+            font-size: 14.5px;
         }
-        .share-btn {
-            background-color: #00a99d;
-            color: #fff;
-            border: none;
-            padding: 6px 10px;
-            border-radius: 5px;
+
+        .share-form select:focus {
+            outline: none;
+            border-color: #00a99d;
+            box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.18);
+        }
+
+        .shared {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .inline-form {
+            display: inline;
+            margin: 0;
+        }
+
+        .notes-cell {
+            max-width: 360px;
+        }
+
+        .notes-cell summary {
+            color: #00786f;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 0.85em;
         }
-        .shared-tag { color: #0b7d56; font-size: 0.9em; }
-        .muted { color: #9aa0a6; font-size: 0.9em; }
 
-        .section-gap { margin-top: 35px; }
-
-        .status {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 10px;
-            font-size: 0.85em;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-        .status-completed { background: #f0fff4; color: #276749; }
-        .status-no-show   { background: #fff5f5; color: #c53030; }
-
-        .notes-cell { max-width: 360px; }
-        .notes-cell summary { cursor: pointer; color: #00a99d; }
         .doctor-notes {
             margin-top: 8px;
             padding: 10px 12px;
-            background: #f7fafc;
             border-left: 3px solid #00a99d;
             border-radius: 4px;
+            background: #f7fafb;
+            color: #12304a;
             line-height: 1.5;
-            white-space: normal;
         }
-        .notes-date { margin-top: 4px; }
+
+        .notes-date {
+            margin-top: 4px;
+        }
     </style>
 </head>
-<body>
-<div class="container">
-    <?php include 'sidebar.html';?>
-    <div class="main-content">
-        <h1>Appointment</h1>
-        <div class="breadcrumb">
-            <a href="index.php">Dashboard</a> &gt; <span>My Appointments</span>
+<body class="site-page">
+
+<?php include('../patientHeader.html'); ?>
+
+<section class="page-hero">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">My appointments</span>
+        <h1>Your appointments</h1>
+        <p>Share a heart check with your doctor before a visit, and read their notes afterwards.</p>
+    </div>
+</section>
+
+<main class="page-body">
+    <?php if ($msg): ?>
+        <div class="notice notice-<?= $msg[0] ?>"><?= htmlspecialchars($msg[1]) ?></div>
+    <?php endif; ?>
+
+    <section class="panel">
+        <div class="panel__head">
+            <div>
+                <h2 class="panel__title">Upcoming</h2>
+                <p class="panel__sub"><?= count($upcoming) ?> <?= count($upcoming) === 1 ? 'appointment' : 'appointments' ?></p>
+            </div>
+            <a href="schedule.php" class="btn btn-primary btn-sm">+ Book an appointment</a>
         </div>
 
-        <?php if ($msg): ?>
-            <div class="notice notice-<?php echo $msg[0]; ?>"><?php echo htmlspecialchars($msg[1]); ?></div>
-        <?php endif; ?>
-
-        <div class="profile-form">
-            <h2>Upcoming appointments</h2>
-                <table>
+        <?php if ($upcoming): ?>
+            <div class="table-scroll">
+                <table class="data-table stack">
                     <thead>
                         <tr>
                             <th>Doctor</th>
-                            <th>Specialty</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Heart Assessment</th>
-                            <th>Action</th>
+                            <th>Date &amp; time</th>
+                            <th>Heart check</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php
-                        if (count($upcoming) > 0) {
-                            foreach ($upcoming as $row) {
-                                // Show the booked slot as a range, matching the
-                                // labels the patient picked from on booking.php.
-                                $slot = date("h:i A", strtotime($row['start_time']))
-                                      . " - "
-                                      . date("h:i A", strtotime($row['end_time']));
-
-                                echo "<tr>";
-                                echo "<td>Dr. ".htmlspecialchars($row['dname'])."</td>";
-                                echo "<td>".htmlspecialchars($row['sname'])."</td>";
-                                echo "<td>".htmlspecialchars($row['adate'])."</td>";
-                                echo "<td>".htmlspecialchars($slot)."</td>";
-
-                                // --- share / unshare a heart reading ---------
-                                echo "<td>";
-                                if ($row['shared_pdid']) {
-                                    echo "<span class='shared-tag'>&#10003; Shared</span> ";
-                                    echo "<form method='POST' action='shareAssessment.php' style='display:inline'>";
-                                    echo "<input type='hidden' name='apid' value='".(int)$row['apid']."'>";
-                                    echo "<input type='hidden' name='action' value='unshare'>";
-                                    echo "<button type='submit' class='cancel-btn'>Stop sharing</button>";
-                                    echo "</form>";
-                                } elseif (count($unshared) > 0) {
-                                    echo "<form method='POST' action='shareAssessment.php' class='share-form'>";
-                                    echo "<input type='hidden' name='apid' value='".(int)$row['apid']."'>";
-                                    echo "<input type='hidden' name='action' value='share'>";
-                                    echo "<select name='pdid' required>";
-                                    echo "<option value='' disabled selected hidden>Choose a reading</option>";
-                                    foreach ($unshared as $u) {
-                                        echo "<option value='".(int)$u['pdid']."'>"
-                                           . htmlspecialchars(date("d M Y", strtotime($u['timestamp'])))
-                                           . "</option>";
-                                    }
-                                    echo "</select>";
-                                    echo "<button type='submit' class='share-btn'>Share</button>";
-                                    echo "</form>";
-                                } else {
-                                    echo "<span class='muted'>No reading yet &mdash; <a href='form.php'>take the test</a></span>";
-                                }
-                                echo "</td>";
-
-                                // --- cancel ----------------------------------
-                                echo "<td>";
-                                echo "<form method='POST' action='cancelAppointment.php' "
-                                   . "onsubmit=\"return confirm('Cancel this appointment? The timeslot will be released for other patients.');\">";
-                                echo "<input type='hidden' name='apid' value='".(int)$row['apid']."'>";
-                                echo "<button type='submit' class='cancel-btn'>Cancel</button>";
-                                echo "</form>";
-                                echo "</td>";
-
-                                echo "</tr>";
-                            }
-                        } else {
-                            echo "<tr><td colspan='6'>No upcoming appointments. <a href='schedule.php'>Browse available sessions</a></td></tr>";
-                        }
-                        ?>
+                        <?php foreach ($upcoming as $row): ?>
+                            <tr>
+                                <td data-label="Doctor">
+                                    <div><span class="cell-strong">Dr. <?= htmlspecialchars($row['dname']) ?></span><br>
+                                    <span class="cell-muted"><?= htmlspecialchars($row['sname']) ?></span></div>
+                                </td>
+                                <td class="nowrap" data-label="Date & time">
+                                    <div><span class="cell-strong"><?= date('D j M Y', strtotime($row['adate'])) ?></span><br>
+                                    <span class="cell-muted"><?= date('g:i A', strtotime($row['start_time'])) ?> - <?= date('g:i A', strtotime($row['end_time'])) ?></span></div>
+                                </td>
+                                <td data-label="Heart check">
+                                    <?php if ($row['shared_pdid']): ?>
+                                        <div class="shared">
+                                            <span class="badge badge-success">&#10003; Shared</span>
+                                            <form method="POST" action="shareAssessment.php" class="inline-form">
+                                                <input type="hidden" name="apid" value="<?= (int)$row['apid'] ?>">
+                                                <input type="hidden" name="action" value="unshare">
+                                                <button type="submit" class="btn btn-light btn-sm">Stop sharing</button>
+                                            </form>
+                                        </div>
+                                    <?php elseif ($unshared): ?>
+                                        <form method="POST" action="shareAssessment.php" class="share-form">
+                                            <input type="hidden" name="apid" value="<?= (int)$row['apid'] ?>">
+                                            <input type="hidden" name="action" value="share">
+                                            <select name="pdid" required aria-label="Heart check to share">
+                                                <option value="" disabled selected hidden>Choose a reading</option>
+                                                <?php foreach ($unshared as $u): ?>
+                                                    <option value="<?= (int)$u['pdid'] ?>"><?= htmlspecialchars(date("j M Y", strtotime($u['timestamp']))) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <button type="submit" class="btn btn-primary btn-sm">Share</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="cell-muted">No reading yet &mdash; <a href="form.php">take the check</a></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td style="text-align: right">
+                                    <form method="POST" action="cancelAppointment.php" class="inline-form"
+                                          onsubmit="return confirm('Cancel this appointment? The time slot will be released for other patients.');">
+                                        <input type="hidden" name="apid" value="<?= (int)$row['apid'] ?>">
+                                        <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
+            </div>
+        <?php else: ?>
+            <div class="empty-state">
+                <p>You have no upcoming appointments.</p>
+                <a href="schedule.php" class="btn btn-primary">Browse available sessions</a>
+            </div>
+        <?php endif; ?>
+    </section>
 
-            <div class="section-gap">
-                <h2>Past appointments</h2>
-                <table>
+    <section class="panel">
+        <div class="panel__head">
+            <div>
+                <h2 class="panel__title">Past</h2>
+                <p class="panel__sub">Visits your doctor has recorded, with their notes.</p>
+            </div>
+        </div>
+
+        <?php if ($past): ?>
+            <div class="table-scroll">
+                <table class="data-table stack">
                     <thead>
                         <tr>
                             <th>Doctor</th>
-                            <th>Specialty</th>
-                            <th>Date</th>
-                            <th>Time</th>
+                            <th>Date &amp; time</th>
                             <th>Status</th>
                             <th>Doctor's notes</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php
-                        if (count($past) > 0) {
-                            foreach ($past as $row) {
-                                $slot = date("h:i A", strtotime($row['start_time']))
-                                      . " - "
-                                      . date("h:i A", strtotime($row['end_time']));
-
-                                echo "<tr>";
-                                echo "<td>Dr. ".htmlspecialchars($row['dname'])."</td>";
-                                echo "<td>".htmlspecialchars($row['sname'])."</td>";
-                                echo "<td>".htmlspecialchars($row['adate'])."</td>";
-                                echo "<td>".htmlspecialchars($slot)."</td>";
-
-                                echo "<td>";
-                                if ($row['status'] === 'completed') {
-                                    echo "<span class='status status-completed'>&#10003; Completed</span>";
-                                } elseif ($row['status'] === 'no_show') {
-                                    echo "<span class='status status-no-show'>&#10007; Missed</span>";
-                                } else {
-                                    echo "<span class='muted'>Not recorded</span>";
-                                }
-                                echo "</td>";
-
-                                echo "<td class='notes-cell'>";
-                                if (trim((string)$row['doctor_notes']) !== '') {
-                                    echo "<details><summary>Read notes</summary>";
-                                    echo "<div class='doctor-notes'>" . nl2br(htmlspecialchars($row['doctor_notes'])) . "</div>";
-                                    if ($row['notes_updated_at']) {
-                                        echo "<div class='muted notes-date'>Updated "
-                                           . htmlspecialchars(date("d M Y", strtotime($row['notes_updated_at'])))
-                                           . "</div>";
-                                    }
-                                    echo "</details>";
-                                } else {
-                                    echo "<span class='muted'>&mdash;</span>";
-                                }
-                                echo "</td>";
-                                echo "</tr>";
-                            }
-                        } else {
-                            echo "<tr><td colspan='6'>No past appointments yet.</td></tr>";
-                        }
-                        ?>
+                        <?php foreach ($past as $row): ?>
+                            <tr>
+                                <td data-label="Doctor">
+                                    <div><span class="cell-strong">Dr. <?= htmlspecialchars($row['dname']) ?></span><br>
+                                    <span class="cell-muted"><?= htmlspecialchars($row['sname']) ?></span></div>
+                                </td>
+                                <td class="nowrap" data-label="Date & time">
+                                    <div><span class="cell-strong"><?= date('D j M Y', strtotime($row['adate'])) ?></span><br>
+                                    <span class="cell-muted"><?= date('g:i A', strtotime($row['start_time'])) ?> - <?= date('g:i A', strtotime($row['end_time'])) ?></span></div>
+                                </td>
+                                <td data-label="Status">
+                                    <?php if ($row['status'] === 'completed'): ?>
+                                        <span class="badge badge-success">&#10003; Completed</span>
+                                    <?php elseif ($row['status'] === 'no_show'): ?>
+                                        <span class="badge badge-danger">&#10007; Missed</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-muted">Not recorded</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="notes-cell" data-label="Notes">
+                                    <?php if (trim((string)$row['doctor_notes']) !== ''): ?>
+                                        <details>
+                                            <summary>Read notes</summary>
+                                            <div class="doctor-notes"><?= nl2br(htmlspecialchars($row['doctor_notes'])) ?></div>
+                                            <?php if ($row['notes_updated_at']): ?>
+                                                <div class="cell-muted notes-date">Updated <?= htmlspecialchars(date("j M Y", strtotime($row['notes_updated_at']))) ?></div>
+                                            <?php endif; ?>
+                                        </details>
+                                    <?php else: ?>
+                                        <span class="cell-muted">&mdash;</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
-        </div>
-    </div>
-</div>
+        <?php else: ?>
+            <div class="empty-state">
+                <p>No past appointments yet.</p>
+            </div>
+        <?php endif; ?>
+    </section>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

@@ -45,123 +45,81 @@ function describe($field, $value)
     return htmlspecialchars(describeAssessmentValue($field, $value));
 }
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heart Assessment</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>Shared Heart Check - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <link rel="stylesheet" href="../css/risk.css">
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f7f6;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            min-height: 100vh;
-        }
-        .container { display: flex; flex: 1; }
-        .main-content {
-            flex-grow: 1;
-            background-color: #ffffff;
-            padding: 30px;
-            box-sizing: border-box;
-        }
-        .main-content h1 { margin-top: 0; font-size: 24px; color: #333333; }
-        .breadcrumb { margin-bottom: 20px; color: #777777; }
-        .breadcrumb a { text-decoration: none; color: #00a99d; }
-
-        .panel {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 25px;
-        }
-        .panel h2 { margin-top: 0; font-size: 18px; }
-
-        .meta p { margin: 4px 0; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        table, th, td { border: 1px solid #cccccc; }
-        th, td { padding: 9px; text-align: left; }
-        th { background-color: #00a99d; color: #ffffff; }
-
-        .back { text-decoration: none; color: #00a99d; display: inline-block; margin-top: 10px; }
-        .back:hover { text-decoration: underline; }
-        .empty { color: #8b2c22; }
-    </style>
 </head>
-<body>
-<div class="container">
-<?php include("sidebar.php"); ?>
-    <div class="main-content">
-        <h1>Heart Assessment</h1>
-        <div class="breadcrumb">
-            <a href="index.php">Dashboard</a> &gt;
-            <a href="appointment.php">My Appointments</a> &gt;
-            <span>Assessment</span>
+<body class="site-page">
+
+<?php include("../doctorHeader.html"); ?>
+
+<section class="page-hero page-hero--doctor">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">Shared heart check</span>
+        <h1><?= $data ? htmlspecialchars($data['pname']) . "'s heart check" : 'Heart check' ?></h1>
+        <p>Shared by the patient with their appointment so you can review it before the visit.</p>
+    </div>
+</section>
+
+<main class="page-body">
+<?php if (!$data): ?>
+    <section class="panel">
+        <div class="empty-state">
+            <p>No shared heart check was found for this appointment. A patient's reading is only visible here once they share it with their booking.</p>
+            <a href="appointment.php" class="btn btn-light">Back to appointments</a>
         </div>
-
-        <?php if (!$data): ?>
-            <div class="panel">
-                <p class="empty">No shared assessment was found for this appointment.</p>
-                <p>A patient's reading is only visible here once they choose to share it with their booking.</p>
-                <a class="back" href="appointment.php">Back to appointments</a>
-            </div>
-        <?php else: ?>
-            <div class="panel meta">
-                <h2>Patient</h2>
-                <p><strong>Name:</strong> <?php echo htmlspecialchars($data['pname']); ?></p>
-                <p><strong>Date of birth:</strong> <?php echo htmlspecialchars($data['pdob']); ?></p>
-                <p><strong>Appointment:</strong>
-                    <?php
-                        echo htmlspecialchars($data['adate']) . " at "
-                           . date("h:i A", strtotime($data['start_time'])) . " - "
-                           . date("h:i A", strtotime($data['end_time']));
-                    ?>
-                </p>
-                <p><strong>Reading submitted:</strong> <?php echo htmlspecialchars($data['timestamp']); ?></p>
-            </div>
-
-            <div class="panel">
-                <h2>Model assessment</h2>
+    </section>
+<?php else: ?>
+    <div class="page-grid">
+        <div>
+            <section class="panel">
+                <div class="panel__head">
+                    <div>
+                        <h2 class="panel__title">Model assessment</h2>
+                        <p class="panel__sub">Reading taken <?= date('j F Y, g:i A', strtotime($data['timestamp'])) ?></p>
+                    </div>
+                </div>
                 <?php if ($assessment): ?>
                     <?php renderRiskCard($assessment); ?>
                 <?php else: ?>
-                    <p class='empty'>The prediction model could not be run.</p>
+                    <div class="notice notice-bad">The prediction model could not be run.</div>
                 <?php endif; ?>
-            </div>
+            </section>
 
-            <div class="panel">
-                <h2>Submitted values</h2>
-                <table>
-                    <thead>
-                        <tr><th>Measure</th><th>Value</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Age</td><td><?php echo (int)$data['age']; ?></td></tr>
-                        <tr><td>Sex</td><td><?php echo describe('sex', (int)$data['sex']); ?></td></tr>
-                        <tr><td>Chest pain type</td><td><?php echo describe('cp', (int)$data['cp']); ?></td></tr>
-                        <tr><td>Resting blood pressure</td><td><?php echo (int)$data['trestbps']; ?> mm Hg</td></tr>
-                        <tr><td>Serum cholesterol</td><td><?php echo (int)$data['chol']; ?> mg/dl</td></tr>
-                        <tr><td>Fasting blood sugar</td><td><?php echo describe('fbs', (int)$data['fbs']); ?></td></tr>
-                        <tr><td>Resting ECG</td><td><?php echo describe('restecg', (int)$data['restecg']); ?></td></tr>
-                        <tr><td>Max heart rate achieved</td><td><?php echo (int)$data['thalach']; ?> bpm</td></tr>
-                        <tr><td>Exercise induced angina</td><td><?php echo describe('exang', (int)$data['exang']); ?></td></tr>
-                        <tr><td>ST depression (oldpeak)</td><td><?php echo htmlspecialchars($data['oldpeak']); ?></td></tr>
-                        <tr><td>ST segment slope</td><td><?php echo describe('slope', (int)$data['slope']); ?></td></tr>
-                        <tr><td>Major vessels coloured</td><td><?php echo (int)$data['ca']; ?></td></tr>
-                        <tr><td>Thallium stress scan (thal)</td><td><?php echo describe('thal', (int)$data['thal']); ?></td></tr>
-                    </tbody>
-                </table>
-                <a class="back" href="appointment.php">Back to appointments</a>
+            <section class="panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">Submitted values</h2>
+                </div>
+                <ul class="detail-list">
+                    <?php foreach (ASSESSMENT_FIELDS as $name => $field): ?>
+                        <li><span><?= htmlspecialchars($field['label']) ?></span><strong><?= describe($name, $data[$name]) ?></strong></li>
+                    <?php endforeach; ?>
+                </ul>
+            </section>
+        </div>
+
+        <aside class="panel">
+            <p class="panel__label">Patient and appointment</p>
+            <ul class="detail-list">
+                <li><span>Patient</span><strong><?= htmlspecialchars($data['pname']) ?></strong></li>
+                <li><span>Date of birth</span><strong><?= date('j M Y', strtotime($data['pdob'])) ?></strong></li>
+                <li><span>Appointment</span><strong><?= date('D j M Y', strtotime($data['adate'])) ?></strong></li>
+                <li><span>Time</span><strong><?= date("g:i A", strtotime($data['start_time'])) ?> - <?= date("g:i A", strtotime($data['end_time'])) ?></strong></li>
+            </ul>
+            <div class="btn-row" style="margin-top: 16px">
+                <a class="btn btn-primary btn-block" href="consultation.php?apid=<?= (int)$data['apid'] ?>">Record the visit</a>
+                <a class="btn btn-light btn-block" href="appointment.php">Back to appointments</a>
             </div>
-        <?php endif; ?>
+        </aside>
     </div>
-</div>
+<?php endif; ?>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

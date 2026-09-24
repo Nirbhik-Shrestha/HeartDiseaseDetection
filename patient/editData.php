@@ -6,14 +6,9 @@ include_once("../assessment.php");
 $userfetch = requireRole($con, 'patient');
 $useremail = $userfetch["pemail"];
 $userid = $userfetch["pid"];
+$username = $userfetch["pname"];
 
-// Get record ID
-if (!isset($_GET["id"])) {
-    echo "<p>No record ID provided.</p>";
-    exit();
-}
-
-$record_id = intval($_GET["id"]);
+$record_id = isset($_GET["id"]) ? intval($_GET["id"]) : 0;
 
 // Fetch record for editing
 $stmt = $con->prepare("SELECT * FROM patient_data WHERE pdid = ? AND pid = ?");
@@ -22,11 +17,13 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows != 1) {
-    echo "<p>Record not found or does not belong to you.</p>";
+    // Missing or someone else's reading: back to the list of the patient's own.
+    header("Location: viewHistory.php");
     exit();
 }
 
 $data = $result->fetch_assoc();
+$takenAt = $data['timestamp'];
 
 // Set by updateData.php when the last attempt failed validation.
 $errors = isset($_SESSION['assessment_errors']) ? $_SESSION['assessment_errors'] : [];
@@ -36,26 +33,54 @@ if (isset($_SESSION['assessment_old'])) {
 unset($_SESSION['assessment_errors'], $_SESSION['assessment_old']);
 $stmt->close();
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Edit Record</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit Heart Check - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        .field-group { border: 1px solid #e3e8ef; border-radius: 10px; padding: 6px 16px 16px; margin-top: 18px; }
-        .field-group legend { font-weight: bold; padding: 0 6px; }
-        .group-intro, .hint { font-size: 13px; color: #666; line-height: 1.45; margin-top: 6px; }
-        .field label { display: block; margin-top: 14px; font-weight: bold; }
-        .field select, .field input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
-        .unit { font-weight: normal; color: #777; }
+        .edit-actions {
+            position: sticky;
+            bottom: 16px;
+            z-index: 5;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 14px 14px 22px;
+            border-radius: 16px;
+            background: #12304a;
+            color: #d6e0e8;
+            box-shadow: 0 18px 40px -16px rgba(18, 48, 74, 0.55);
+        }
+
+        .edit-actions p {
+            margin: 0;
+            font-size: 15px;
+        }
+
+        .edit-actions .btn-row {
+            margin-left: auto;
+        }
     </style>
 </head>
-<body>
-<div class="container">
-    <h2>Edit Prediction Record</h2>
+<body class="site-page">
+
+<?php include('../patientHeader.html'); ?>
+
+<section class="page-hero">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">Edit heart check</span>
+        <h1>Edit your answers</h1>
+        <p>Correct any value from your reading of <?= date('j F Y', strtotime($takenAt)) ?>. The risk score is recalculated when you save.</p>
+    </div>
+</section>
+
+<main class="page-body">
     <?php if ($errors): ?>
-        <div class="error" role="alert">
+        <div class="notice notice-bad" role="alert">
             <strong>Please check your answers:</strong>
             <ul>
                 <?php foreach ($errors as $error): ?>
@@ -64,13 +89,21 @@ $stmt->close();
             </ul>
         </div>
     <?php endif; ?>
+
     <form method="post" action="updateData.php">
         <input type="hidden" name="id" value="<?= $record_id ?>" />
-        
         <?php renderAssessmentFields($data); ?>
-        <button type="submit">Update</button>
+
+        <div class="edit-actions">
+            <p>Saving replaces this reading's answers.</p>
+            <div class="btn-row">
+                <a href="viewHistory.php" class="btn btn-light">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
     </form>
-    <a href="viewHistory.php" class="button">Back</a>
-</div>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

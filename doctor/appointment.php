@@ -46,278 +46,129 @@
     function statusBadge($row, $today)
     {
         if ($row['status'] === 'completed') {
-            return "<span class='status status-completed'>&#10003; Completed</span>";
+            return "<span class='badge badge-success'>&#10003; Completed</span>";
         }
         if ($row['status'] === 'no_show') {
-            return "<span class='status status-no-show'>&#10007; No-show</span>";
+            return "<span class='badge badge-danger'>&#10007; No-show</span>";
         }
         return $row['adate'] < $today
-            ? "<span class='status status-pending'>&#9679; Needs update</span>"
-            : "<span class='status status-booked'>&#9679; Booked</span>";
+            ? "<span class='badge badge-warning'>Needs update</span>"
+            : "<span class='badge badge-info'>Booked</span>";
     }
 
-    function renderAppointmentRows(array $rows, $today, $emptyText)
+    /** Table rows for one list of appointments. */
+    function renderAppointmentRows(array $rows, $today)
     {
-        if (!$rows) {
-            echo "<tr><td colspan='6'>" . $emptyText . "</td></tr>";
-            return;
-        }
         foreach ($rows as $row) {
-            $start_time = date("h:i A", strtotime($row["start_time"]));
-            $end_time = date("h:i A", strtotime($row["end_time"]));
-            echo "<tr>";
-            echo "<td>".htmlspecialchars($row['pname'])."</td>";
-            echo "<td>".htmlspecialchars($row['adate'])."</td>";
-            echo "<td>".$start_time . ' - ' . $end_time."</td>";
+            $range = date("g:i A", strtotime($row["start_time"])) . ' - ' . date("g:i A", strtotime($row["end_time"]));
+            $day = $row['adate'] === $today ? 'Today' : date('D j M Y', strtotime($row['adate']));
 
-            echo "<td>";
+            echo "<tr>";
+            echo "<td class='cell-strong' data-label='Patient'>" . htmlspecialchars($row['pname']) . "</td>";
+            echo "<td class='nowrap' data-label='Date &amp; time'><div><span class='cell-strong'>" . $day
+               . "</span><br><span class='cell-muted'>" . $range . "</span></div></td>";
+
+            echo "<td data-label='Heart check'>";
             if ($row['shared_pdid']) {
-                echo "<a class='assessment-link' href='viewAssessment.php?apid=".(int)$row['apid']."'>View assessment</a>";
+                echo "<a class='btn btn-light btn-sm' href='viewAssessment.php?apid=" . (int)$row['apid'] . "'>View shared check</a>";
             } else {
-                echo "<span class='muted'>Not shared</span>";
+                echo "<span class='cell-muted'>Not shared</span>";
             }
             echo "</td>";
 
-            echo "<td>" . statusBadge($row, $today) . "</td>";
+            echo "<td data-label='Status'>" . statusBadge($row, $today) . "</td>";
 
             echo "<td>";
             if ($row['adate'] > $today) {
-                echo "<span class='muted'>From " . htmlspecialchars($row['adate']) . "</span>";
+                echo "<span class='cell-muted'>Record from " . date('j M', strtotime($row['adate'])) . "</span>";
             } else {
-                $label = ($row['status'] === 'booked' && trim((string)$row['doctor_notes']) === '')
-                    ? 'Record visit' : 'View / edit notes';
-                echo "<a class='assessment-link' href='consultation.php?apid=".(int)$row['apid']."'>" . $label . "</a>";
+                $needsRecord = $row['status'] === 'booked' && trim((string)$row['doctor_notes']) === '';
+                echo "<a class='btn " . ($needsRecord ? "btn-primary" : "btn-light") . " btn-sm' href='consultation.php?apid=" . (int)$row['apid'] . "'>"
+                   . ($needsRecord ? 'Record visit' : 'View / edit notes') . "</a>";
             }
             echo "</td>";
-
             echo "</tr>";
         }
     }
+
+    $saved = isset($_GET['msg']) && $_GET['msg'] === 'saved';
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Appointment</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f7f6;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-        }
-
-        .container {
-            display: flex;
-            flex: 1;
-        }
-
-        .main-content {
-            flex-grow: 1;
-            background-color: #ffffff;
-            padding: 30px;
-            box-sizing: border-box;
-            height: -webkit-fill-available;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .main-content h1 {
-            margin-top: 0;
-            font-size: 24px;
-            color: #333333;
-        }
-
-        .breadcrumb {
-            margin-bottom: 20px;
-            color: #777777;
-        }
-
-        .breadcrumb a {
-            text-decoration: none;
-            color: #00a99d;
-        }
-
-        .profile-form {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: auto;
-            flex-grow: 1;
-        }
-
-        .profile-form h2 {
-            margin-top: 0;
-            font-size: 20px;
-            color: #333333;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-
-        .form-group.inline {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .form-group.inline .form-control {
-            width: 48%;
-        }
-
-        .height-inputs {
-            display: flex;
-            gap: 10px;
-        }
-
-        .height-inputs .form-control {
-            width: calc(50% - 5px);
-        }
-
-        .update-btn {
-            background-color: #00a99d;
-            color: #ffffff;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 5px;
-            display: block;
-            width: 100%;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        table, th, td {
-            border: 1px solid #cccccc;
-        }
-
-        th, td {
-            padding: 10px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #00a99d;
-            color: #ffffff;
-        }
-
-        .muted { color: #9aa0a6; }
-
-        .profile-form h2.section-gap { margin-top: 36px; }
-
-        .notice {
-            background: #e6f6f1;
-            border: 1px solid #a6ddc9;
-            border-radius: 5px;
-            padding: 10px 14px;
-            color: #1f6f5c;
-        }
-
-        .status {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 10px;
-            font-size: 0.85em;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-        .status-booked    { background: #ebf4ff; color: #2c5282; }
-        .status-pending   { background: #fffaf0; color: #9c4221; border: 1px solid #fbd38d; }
-        .status-completed { background: #f0fff4; color: #276749; }
-        .status-no-show   { background: #fff5f5; color: #c53030; }
-
-        .assessment-link {
-            margin-top: 0;
-            font-weight: 500;
-        }
-
-        a {
-            text-decoration: none;
-            color: #00a99d;
-            display: inline-block;
-            margin-top: 20px;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Appointments - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
 </head>
-<body>
-<div class="container">
-    <?php include("sidebar.php");?>
+<body class="site-page">
 
-        <div class="main-content">
-            <h1>Appointment</h1>
-            <div class="breadcrumb">
-            <a href="index.php">Dashboard</a> &gt; <span>My Appointments</span>
-        </div>
-        <div class="profile-form">
-            <?php if (isset($_GET['msg']) && $_GET['msg'] === 'saved'): ?>
-                <p class="notice">Consultation saved.</p>
-            <?php endif; ?>
+<?php include("../doctorHeader.html"); ?>
 
-            <h2>Today and upcoming</h2>
-            <table border="1" cellpadding="10">
-                <thead>
-                    <tr>
-                        <th>Patient</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Heart Assessment</th>
-                        <th>Status</th>
-                        <th>Consultation</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php renderAppointmentRows($upcoming, $today, 'No upcoming appointments'); ?>
-                </tbody>
-            </table>
+<section class="page-hero page-hero--doctor">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">My appointments</span>
+        <h1>Your appointments</h1>
+        <p>See who is booked with you, open heart checks they have shared, and record each visit afterwards.</p>
+    </div>
+</section>
 
-            <h2 class="section-gap">Past appointments</h2>
-            <p class="muted">Mark each visit as completed or no-show, and add notes for the patient.</p>
-            <table border="1" cellpadding="10">
-                <thead>
-                    <tr>
-                        <th>Patient</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Heart Assessment</th>
-                        <th>Status</th>
-                        <th>Consultation</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php renderAppointmentRows($past, $today, 'No past appointments'); ?>
-                </tbody>
-            </table>
-            <br><br>
-            <a href="index.php">Back</a>
+<main class="page-body">
+    <?php if ($saved): ?>
+        <div class="notice notice-ok">Consultation saved. The patient can now see your notes.</div>
+    <?php endif; ?>
+
+    <section class="panel">
+        <div class="panel__head">
+            <div>
+                <h2 class="panel__title">Today and upcoming</h2>
+                <p class="panel__sub"><?= count($upcoming) ?> <?= count($upcoming) === 1 ? 'appointment' : 'appointments' ?></p>
+            </div>
+            <a href="schedule.php" class="btn btn-light btn-sm">Manage sessions</a>
         </div>
+        <?php if ($upcoming): ?>
+            <div class="table-scroll">
+                <table class="data-table stack">
+                    <thead>
+                        <tr><th>Patient</th><th>Date &amp; time</th><th>Heart check</th><th>Status</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        <?php renderAppointmentRows($upcoming, $today); ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="empty-state">
+                <p>No upcoming appointments.</p>
+                <a href="schedule.php" class="btn btn-light">Add a session</a>
+            </div>
+        <?php endif; ?>
+    </section>
+
+    <section class="panel" id="past">
+        <div class="panel__head">
+            <div>
+                <h2 class="panel__title">Past appointments</h2>
+                <p class="panel__sub">Mark each visit as completed or no-show, and add notes for the patient.</p>
+            </div>
         </div>
-</div>
+        <?php if ($past): ?>
+            <div class="table-scroll">
+                <table class="data-table stack">
+                    <thead>
+                        <tr><th>Patient</th><th>Date &amp; time</th><th>Heart check</th><th>Status</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        <?php renderAppointmentRows($past, $today); ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="empty-state"><p>No past appointments yet.</p></div>
+        <?php endif; ?>
+    </section>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

@@ -1,258 +1,162 @@
 <?php
-    ob_start(); // Start output buffering
-
     include("../connection.php");
     include_once("../auth.php");
 
     $userfetch = requireRole($con, 'doctor');
     $useremail = $userfetch["demail"];
-    $userid= $userfetch["did"];
-    $username=$userfetch["dname"];
-    $useraddress =$userfetch["daddress"];
-    $userpassword = $userfetch["dpassword"];
-    $usercontact = $userfetch["dcontact"];
-    $usernmc = $userfetch["nmc"];
+    $userid    = (int)$userfetch["did"];
+    $username  = $userfetch["dname"];
 
+    $stmt = $con->prepare("SELECT sname FROM specialties WHERE spid = ?");
+    $spid = (int)$userfetch['spid'];
+    $stmt->bind_param("i", $spid);
+    $stmt->execute();
+    $spec = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    $specialty = $spec ? $spec['sname'] : '';
 
-    $userspecrow = $con->query("SELECT sname FROM specialties s 
-                                INNER JOIN doctors d ON d.spid = s.spid
-                                where did = '$userid'
-                                ");
-    $userspecfetch = $userspecrow->fetch_assoc();
-    $userspec = $userspecfetch["sname"];
+    // Doctors can change their own password; their other details are
+    // managed by the admin (admin/doctors.php).
+    $errors = [];
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $current = isset($_POST['current_password']) ? (string)$_POST['current_password'] : '';
+        $new     = isset($_POST['new_password']) ? (string)$_POST['new_password'] : '';
+        $confirm = isset($_POST['confirm_password']) ? (string)$_POST['confirm_password'] : '';
 
-
-?>
-
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Appointment</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f7f6;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
+        if (!password_verify($current, $userfetch['dpassword'])) {
+            $errors[] = 'Your current password is not correct.';
+        }
+        if (strlen($new) < 6) {
+            $errors[] = 'Your new password must be at least 6 characters.';
+        } elseif ($new !== $confirm) {
+            $errors[] = 'The new passwords do not match.';
         }
 
-        .container {
-            display: flex;
-            flex: 1;
+        if (!$errors) {
+            $hash = password_hash($new, PASSWORD_BCRYPT);
+            $stmt = $con->prepare("UPDATE doctors SET dpassword = ? WHERE did = ?");
+            $stmt->bind_param("si", $hash, $userid);
+            $ok = $stmt->execute();
+            $stmt->close();
+
+            if ($ok) {
+                $_SESSION['password_changed'] = true;
+                $con->close();
+                header("Location: updateProfile.php");
+                exit();
+            }
+            $errors[] = 'Your password could not be changed. Please try again.';
         }
-
-        .main-content {
-            flex-grow: 1;
-            background-color: #ffffff;
-            padding: 30px;
-            box-sizing: border-box;
-            height: -webkit-fill-available;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .main-content h1 {
-            margin-top: 0;
-            font-size: 24px;
-            color: #333333;
-        }
-
-        .breadcrumb {
-            margin-bottom: 20px;
-            color: #777777;
-        }
-
-        .breadcrumb a {
-            text-decoration: none;
-            color: #00a99d;
-        }
-
-        .profile-form {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: auto;
-            flex-grow: 1;
-        }
-
-        .profile-form h2 {
-            margin-top: 0;
-            font-size: 20px;
-            color: #333333;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-
-        .form-group.inline {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .form-group.inline .form-control {
-            width: 48%;
-        }
-
-        .height-inputs {
-            display: flex;
-            gap: 10px;
-        }
-
-        .height-inputs .form-control {
-            width: calc(50% - 5px);
-        }
-
-        .update-btn {
-            background-color: #00a99d;
-            color: #ffffff;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 5px;
-            display: block;
-            width: 100%;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        table, th, td {
-            border: 1px solid #cccccc;
-        }
-
-        th, td {
-            padding: 10px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #00a99d;
-            color: #ffffff;
-        }
-
-        a {
-            text-decoration: none;
-            color: #00a99d;
-            display: inline-block;
-            margin-top: 20px;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-    </style>
-</head>
-<body>
-<?php
-
-if(isset($_POST['update'])){
-
-    $newPassword = password_hash($_POST['dpassword'], PASSWORD_BCRYPT);
-
-    $sql = "UPDATE doctors SET dpassword = '$newPassword' WHERE did = '$userid'";
-
-    if(mysqli_query($con, $sql)){
-        $_SESSION['message'] = "Password updated successfully!";
-    }else{
-        $_SESSION['message'] = "Please provide correct format !";
     }
 
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
-}
-
-if (isset($_SESSION['message'])) {
-    echo "<script>alert('" . $_SESSION['message'] . "');</script>";
-    unset($_SESSION['message']); // Unset the message after displaying it
-}
-
-ob_end_flush(); // End output buffering and send the output
-
-
-
-
+    $changed = !empty($_SESSION['password_changed']);
+    unset($_SESSION['password_changed']);
+    $con->close();
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
+    <style>
+        .profile-summary {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 0 0 18px;
+        }
 
-<div class="container">
-<?php include("sidebar.php");?>
+        .profile-summary img {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: 3px solid #e6f6f4;
+            background: #f5f8fa;
+        }
 
-    <div class="main-content">
-        <h1>My Profile</h1>
-            <div class="breadcrumb">
-                <a href="index.php">Dashboard</a> &gt; <span>My Profile</span>
-            </div>
-    <form class="profile-form" action="updateProfile.php" method="POST">
-                <h2 style="margin-bottom:0;">Edit Your Information</h2>
-                <p style="margin-top:0;color:#777777">You can only change your password</p>
-                <div class="form-group inline">
-                <div class="form-control">
-                    <label for="name">Name</label>
-                    <input type="text" id="dname" name="dname" value="<?php echo ($username)?>">
-                </div>
-                <div class="form-control">
-                    <label for="email">Email</label>
-                    <input type="email" id="demail" name="demail" value="<?php echo ($useremail)?>">
-                </div>
-                </div>
-                <div class="form-group inline">
-                <div class="form-control">
-                    <label for="country">Country</label>
-                    <select id="dcountry" name="dcountry">
-                        <option value="+977" selected>Nepal (+977)</option>
-                    </select>
-                </div>
-                <div class="form-control">
-                    <label for="phone">Phone</label>
-                    <input type="text" id="dcontact" name="dcontact" value="<?php echo ($usercontact)?>">
-                </div>
-            </div>
-            <div class="form-group inline">
-                <div class="form-control">
-                    <label for="address">Address</label>
-                    <input type="text" id="daddress" name="daddress" value="<?php echo ($useraddress)?>">
-                </div>
-                <div class="form-control">
-                    <label for="spid">Specialties</label>
-                    <input type="text" id="spid" name="spid" value="<?php echo ($userspec)?>">
-                </div>
-            </div>
-                <div class="form-group">
-                    <label for="nmc">NMC</label>
-                    <input type="text" id="nmc" name="nmc" value="<?php echo ($usernmc) ?>">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="dpassword" name="dpassword" placeholder="Password">
-                </div>
-                
-                <button type="submit" class="update-btn" name="update">Update Now</button>
-            </form>
+        .profile-summary h2 {
+            margin: 0;
+            color: #12304a;
+            font-size: 20px;
+        }
+
+        .profile-summary p {
+            margin: 2px 0 0;
+        }
+    </style>
+</head>
+<body class="site-page">
+
+<?php include("../doctorHeader.html"); ?>
+
+<section class="page-hero page-hero--doctor">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">My profile</span>
+        <h1>Your details</h1>
+        <p>How patients see you on DaaktarSahab, and where to change your password.</p>
     </div>
-</div>
+</section>
+
+<main class="page-body">
+    <?php if ($changed): ?>
+        <div class="notice notice-ok">Your password was changed. Use the new one next time you sign in.</div>
+    <?php endif; ?>
+
+    <?php if ($errors): ?>
+        <div class="notice notice-bad" role="alert">
+            <strong>Your password was not changed:</strong>
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= htmlspecialchars($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <div class="page-grid">
+        <section class="panel">
+            <div class="profile-summary">
+                <img src="../images/user.png" alt="">
+                <div>
+                    <h2>Dr. <?= htmlspecialchars($username) ?></h2>
+                    <p><span class="badge badge-info"><?= htmlspecialchars($specialty) ?></span></p>
+                </div>
+            </div>
+            <ul class="detail-list">
+                <li><span>Email</span><strong><?= htmlspecialchars($useremail) ?></strong></li>
+                <li><span>Phone</span><strong><?= htmlspecialchars($userfetch['dcontact']) ?></strong></li>
+                <li><span>Practice address</span><strong><?= htmlspecialchars($userfetch['daddress']) ?></strong></li>
+                <li><span>NMC registration</span><strong><?= htmlspecialchars($userfetch['nmc']) ?></strong></li>
+            </ul>
+            <div class="notice notice-info" style="margin: 18px 0 0">
+                To change these details, please ask the DaaktarSahab admin team.
+            </div>
+        </section>
+
+        <aside class="panel">
+            <p class="panel__label">Change password</p>
+            <form action="updateProfile.php" method="POST">
+                <div class="field">
+                    <label for="current_password">Current password</label>
+                    <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+                </div>
+                <div class="field">
+                    <label for="new_password">New password</label>
+                    <input type="password" id="new_password" name="new_password" minlength="6" required autocomplete="new-password">
+                    <p class="hint">At least 6 characters.</p>
+                </div>
+                <div class="field">
+                    <label for="confirm_password">Confirm new password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" minlength="6" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Change password</button>
+            </form>
+        </aside>
+    </div>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

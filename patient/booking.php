@@ -60,240 +60,197 @@ if ($_GET && isset($_GET["id"])) {
 
 $con->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Booking</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book an Appointment - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f8f9fa;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px 0;
-        }
-        .container {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-            width: 100%;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        h1 {
-            font-size: 2em;
-            margin-bottom: 20px;
-            text-align: center;
-            color: #00a99d;
-        }
-        .dashboard-items {
-            background-color: #f1f1f1;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .dashboard-items h2 {
-            font-size: 1.5em;
-            margin-bottom: 10px;
-        }
-        .dashboard-items p {
-            font-size: 1em;
-            line-height: 1.6;
-        }
-        .dashboard-items b {
-            color: #00a99d;
-        }
-        form {
-            text-align: center;
-        }
-        select {
-            width: 100%;
-            padding: 10px;
-            font-size: 1em;
-            margin-bottom: 20px;
-        }
-        input[type="submit"] {
-            background-color: #00a99d;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1em;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        input[type="submit"]:hover {
-            background-color: #007f7a;
-        }
-        .table-container {
-            margin-bottom: 20px;
-        }
-        .slot-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 10px;
-            text-align: left;
-        }
-        .slot-header label {
-            font-weight: 500;
-        }
-        .slot-count {
-            font-size: 0.9em;
-            color: #0b7d56;
-            font-weight: 500;
-        }
+        /* Time-slot picker: each free slot is a card wrapping a hidden radio. */
         .slot-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin: 0 0 24px;
         }
+
         .slot {
+            position: relative;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            padding: 12px;
-            border: 1px solid #d7dbdf;
-            border-radius: 8px;
+            padding: 14px 12px;
+            border: 1px solid #cfdbe3;
+            border-radius: 12px;
+            background: #fff;
             text-align: center;
-            box-sizing: border-box;
         }
+
         .slot-time {
-            font-size: 0.95em;
-            font-weight: 500;
+            color: #12304a;
+            font-size: 16px;
+            font-weight: 600;
         }
+
         .slot-state {
-            font-size: 0.8em;
-            color: #6b7075;
+            color: #6b8193;
+            font-size: 14px;
         }
-        /* The radio itself is hidden; the whole card is the click target. */
+
         .slot-free input[type="radio"] {
             position: absolute;
             opacity: 0;
             width: 0;
             height: 0;
         }
+
         .slot-free {
             cursor: pointer;
-            background-color: #fff;
-            transition: border-color 0.15s, background-color 0.15s;
+            transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
         }
+
         .slot-free:hover {
             border-color: #00a99d;
-            background-color: #f2fbfa;
+            background: #f2fbfa;
         }
+
         .slot-free:has(input[type="radio"]:checked) {
             border-color: #00a99d;
-            border-width: 2px;
-            background-color: #e3f6f4;
+            background: #e6f6f4;
+            box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.18);
         }
+
         .slot-free:has(input[type="radio"]:checked) .slot-state {
-            color: #00a99d;
-            font-weight: 500;
+            color: #00786f;
+            font-weight: 600;
         }
-        /* Keyboard focus still has to be visible, since the input is hidden. */
+
+        /* The radio is hidden, so keyboard focus is shown on the card. */
         .slot-free:has(input[type="radio"]:focus-visible) {
             outline: 2px solid #00a99d;
             outline-offset: 2px;
         }
+
         .slot-booked {
-            background-color: #f1f3f4;
+            background: #f5f8fa;
             border-style: dashed;
-            color: #9aa0a6;
             cursor: not-allowed;
         }
+
         .slot-booked .slot-time {
+            color: #9aabb8;
             text-decoration: line-through;
         }
+
         .slot-booked .slot-state {
-            color: #b0b5ba;
+            color: #9aabb8;
         }
-        .slot-full {
-            color: #b23c3c;
-            font-size: 0.95em;
+
+        .fee {
+            color: #00786f;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <?php
-            if ($session_row) {
-                $scid   = $session_row["scid"];
-                $dname  = $session_row["dname"];
-                $demail = $session_row["demail"];
-                $sname  = $session_row["sname"];
-                $sdate  = $session_row["sdate"];
+<body class="site-page">
 
-                echo '<h1>Booking Details</h1>';
+<?php include('../patientHeader.html'); ?>
 
-                echo '<form action="booking-complete.php" method="POST">
-                    <input type="hidden" name="scid" value="' . $scid . '" >
-                    <input type="hidden" name="adate" value="' . $sdate . '" >
-                    <div class="table-container">
-                        <div class="dashboard-items">
-                            <h2>Session Details</h2>
-                            <p>
-                                <strong>Doctor Name:</strong> Dr. ' . $dname . '<br>
-                                <strong>Doctor Email:</strong> ' . $demail . '<br>
-                                <strong>Doctor Speciality:</strong> ' . $sname . '<br>
-                                <strong>Session Scheduled Date:</strong> ' . $sdate . '<br>
-                                <strong>Channeling fee:</strong> <b>Nrs 2000.00</b>
-                            </p>
-                        </div>
-                    </div>';
-
-                if ($total_count > 0) {
-                    echo '<div class="slot-header">
-                            <label>Select a Timeslot:</label>
-                            <span class="slot-count">' . $free_count . ' of ' . $total_count . ' available</span>
-                          </div>';
-
-                    echo '<div class="slot-grid">';
-                    foreach ($slots as $slot) {
-                        $tid        = $slot["tid"];
-                        $start_time = date("h:i A", strtotime($slot["start_time"]));
-                        $end_time   = date("h:i A", strtotime($slot["end_time"]));
-                        $is_booked  = (int)$slot['is_booked'] > 0;
-
-                        if ($is_booked) {
-                            // No input at all, so a booked slot cannot be posted
-                            // back even by editing the markup.
-                            echo '<div class="slot slot-booked">
-                                    <span class="slot-time">' . $start_time . ' - ' . $end_time . '</span>
-                                    <span class="slot-state">&#10007; Booked</span>
-                                  </div>';
-                        } else {
-                            echo '<label class="slot slot-free">
-                                    <input type="radio" name="tid" value="' . $tid . '" required>
-                                    <span class="slot-time">' . $start_time . ' - ' . $end_time . '</span>
-                                    <span class="slot-state">Available</span>
-                                  </label>';
-                        }
-                    }
-                    echo '</div>';
-
-                    if ($free_count > 0) {
-                        echo '<input type="submit" value="Book Now">';
-                    } else {
-                        echo '<p class="slot-full">Every timeslot in this session is booked. Please choose another session.</p>';
-                    }
-                } else {
-                    echo '<p>No available timeslots for this session.</p>';
-                }
-
-                echo '</form>';
-            } else {
-                echo "<p>" . htmlspecialchars($page_error) . "</p>";
-            }
-        ?>
+<section class="page-hero">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">Booking</span>
+        <h1>Book an appointment</h1>
+        <p>Choose a free one-hour slot in this session to book your visit.</p>
     </div>
+</section>
+
+<main class="page-body">
+<?php if (!$session_row): ?>
+    <section class="panel">
+        <div class="empty-state">
+            <p><?= htmlspecialchars($page_error) ?></p>
+            <a href="schedule.php" class="btn btn-light">Back to sessions</a>
+        </div>
+    </section>
+<?php else: ?>
+    <?php $isPast = $session_row['sdate'] < $today; ?>
+    <div class="page-grid">
+        <section class="panel">
+            <div class="panel__head">
+                <div>
+                    <h2 class="panel__title">Choose a time slot</h2>
+                    <p class="panel__sub"><?= date('l j F Y', strtotime($session_row['sdate'])) ?></p>
+                </div>
+                <?php if ($total_count > 0): ?>
+                    <span class="badge <?= $free_count > 0 ? 'badge-success' : 'badge-muted' ?>">
+                        <?= $free_count ?> of <?= $total_count ?> available
+                    </span>
+                <?php endif; ?>
+            </div>
+
+            <?php if ($isPast): ?>
+                <div class="empty-state">
+                    <p>This session has already taken place.</p>
+                    <a href="schedule.php" class="btn btn-light">See upcoming sessions</a>
+                </div>
+            <?php elseif ($total_count === 0): ?>
+                <div class="empty-state">
+                    <p>This session has no time slots yet.</p>
+                    <a href="schedule.php" class="btn btn-light">Back to sessions</a>
+                </div>
+            <?php else: ?>
+                <form action="booking-complete.php" method="POST">
+                    <div class="slot-grid">
+                        <?php foreach ($slots as $slot): ?>
+                            <?php
+                                $range = date("g:i A", strtotime($slot["start_time"])) . ' - '
+                                       . date("g:i A", strtotime($slot["end_time"]));
+                            ?>
+                            <?php if ((int)$slot['is_booked'] > 0): ?>
+                                <?php /* No input at all, so a booked slot cannot be posted back. */ ?>
+                                <div class="slot slot-booked">
+                                    <span class="slot-time"><?= $range ?></span>
+                                    <span class="slot-state">Booked</span>
+                                </div>
+                            <?php else: ?>
+                                <label class="slot slot-free">
+                                    <input type="radio" name="tid" value="<?= (int)$slot['tid'] ?>" required>
+                                    <span class="slot-time"><?= $range ?></span>
+                                    <span class="slot-state">Available</span>
+                                </label>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <?php if ($free_count > 0): ?>
+                        <div class="btn-row">
+                            <button type="submit" class="btn btn-primary">Book this slot</button>
+                            <a href="schedule.php" class="btn btn-light">Back to sessions</a>
+                        </div>
+                    <?php else: ?>
+                        <div class="notice notice-info">Every time slot in this session is booked. Please choose another session.</div>
+                        <a href="schedule.php" class="btn btn-light">Back to sessions</a>
+                    <?php endif; ?>
+                </form>
+            <?php endif; ?>
+        </section>
+
+        <aside class="panel">
+            <p class="panel__label">Session details</p>
+            <ul class="detail-list">
+                <li><span>Doctor</span><strong>Dr. <?= htmlspecialchars($session_row['dname']) ?></strong></li>
+                <li><span>Specialty</span><strong><?= htmlspecialchars($session_row['sname']) ?></strong></li>
+                <li><span>Email</span><strong><?= htmlspecialchars($session_row['demail']) ?></strong></li>
+                <li><span>Date</span><strong><?= date('D j M Y', strtotime($session_row['sdate'])) ?></strong></li>
+                <li><span>Channelling fee</span><strong class="fee">NRs 2,000.00</strong></li>
+            </ul>
+        </aside>
+    </div>
+<?php endif; ?>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

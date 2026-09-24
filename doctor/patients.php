@@ -1,215 +1,124 @@
-<?php 
-// Database connection
+<?php
 include("../connection.php");
 include_once("../auth.php");
 
 $userfetch = requireRole($con, 'doctor');
 $useremail = $userfetch["demail"];
-$userid= $userfetch["did"];
-$username=$userfetch["dname"];
+$userid    = (int)$userfetch["did"];
+$username  = $userfetch["dname"];
 
+date_default_timezone_set('Asia/Kathmandu');
+$today = date('Y-m-d');
+
+// Patients who have booked with this doctor, with how many visits and when
+// the most recent (or next) one is.
+$stmt = $con->prepare(
+    "SELECT p.pid, p.pname, p.pemail, p.pcontact, p.paddress, p.pdob,
+            COUNT(a.apid) AS visits,
+            MAX(a.adate)  AS latest
+       FROM patients p
+       JOIN appointment a ON a.pid = p.pid
+       JOIN timeslot t    ON a.tid = t.tid
+       JOIN schedule s    ON t.scid = s.scid
+      WHERE s.did = ?
+      GROUP BY p.pid, p.pname, p.pemail, p.pcontact, p.paddress, p.pdob
+      ORDER BY p.pname ASC"
+);
+$stmt->bind_param("i", $userid);
+$stmt->execute();
+$patients = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+$con->close();
+
+/** Whole years between a date of birth and today. */
+function ageFrom($dob, $today)
+{
+    $birth = DateTime::createFromFormat('Y-m-d', $dob);
+    return $birth ? $birth->diff(new DateTime($today))->y : null;
+}
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f7f6;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-        }
-
-        .container {
-            display: flex;
-            flex: 1;
-        }
-
-        .main-content {
-            flex-grow: 1;
-            background-color: #ffffff;
-            padding: 30px;
-            box-sizing: border-box;
-            height: -webkit-fill-available;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .main-content h1 {
-            margin-top: 0;
-            font-size: 24px;
-            color: #333333;
-        }
-
-        .breadcrumb {
-            margin-bottom: 20px;
-            color: #777777;
-        }
-
-        .breadcrumb a {
-            text-decoration: none;
-            color: #00a99d;
-        }
-
-        .profile-form {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: auto;
-            flex-grow: 1;
-        }
-
-        .profile-form h2 {
-            margin-top: 0;
-            font-size: 20px;
-            color: #333333;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-
-        .form-group.inline {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .form-group.inline .form-control {
-            width: 48%;
-        }
-
-        .height-inputs {
-            display: flex;
-            gap: 10px;
-        }
-
-        .height-inputs .form-control {
-            width: calc(50% - 5px);
-        }
-
-        .update-btn {
-            background-color: #00a99d;
-            color: #ffffff;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 5px;
-            display: block;
-            width: 100%;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        table, th, td {
-            border: 1px solid #cccccc;
-        }
-
-        th, td {
-            padding: 10px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #00a99d;
-            color: #ffffff;
-        }
-
-        a {
-            text-decoration: none;
-            color: #00a99d;
-            display: inline-block;
-            margin-top: 20px;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Patients - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
 </head>
-<body>
+<body class="site-page">
 
-<?php
+<?php include("../doctorHeader.html"); ?>
 
-
-// Fetch unique patients who have appointments with the logged-in doctor
-$sql = "SELECT DISTINCT p.pid, p.pname, p.pemail, p.pcontact, p.paddress, p.pdob FROM patients p
-        INNER JOIN appointment a ON a.pid = p.pid 
-        INNER JOIN timeslot t ON a.tid = t.tid 
-        INNER JOIN schedule s ON t.scid = s.scid 
-        INNER JOIN doctors d ON s.did = d.did
-        WHERE d.did = $userid
-        ORDER BY p.pname ASC";
-$result = $con->query($sql);
-?>
-
-<div class="container">
-    <?php include("sidebar.php");?>
-    <div class="main-content">
-            <h1>Patients List</h1>
-            <div class="breadcrumb">
-            <a href="index.php">Dashboard</a> &gt; <span>My Patients</span>
-        </div>
-        <div class="profile-form">
-            <h2>All your patients</h2>
-            <table border="1" cellpadding="10">
-                <thead>
-                    <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Contact</th>
-                    <th>Address</th>
-                    <th>Date of Birth</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                        if($result->num_rows > 0){
-                            while($row = $result->fetch_assoc()){
-                                echo "<tr>";
-                                echo "<td>" . htmlspecialchars($row["pname"]) . "</td>";
-                                echo "<td>" . htmlspecialchars($row["pemail"]) . "</td>";
-                                echo "<td>" . htmlspecialchars($row["pcontact"]) . "</td>";
-                                echo "<td>" . htmlspecialchars($row["paddress"]) . "</td>";
-                                echo "<td>" . htmlspecialchars($row["pdob"]) . "</td>";
-                                echo "</tr>";
-                            }
-                        } else {
-                            echo "<tr><td colspan='5'>No patients found</td></tr>";
-                        }
-                    ?>
-                </tbody>
-            </table>
-            <br><br>
-            <a href="index.php">Back</a>
-        </div>
+<section class="page-hero page-hero--doctor">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">Patients</span>
+        <h1>Your patients</h1>
+        <p>Everyone who has booked an appointment with you, with their contact details.</p>
     </div>
-</div>
+</section>
 
-<?php $con->close(); ?>
+<main class="page-body">
+    <section class="panel">
+        <div class="panel__head">
+            <div>
+                <h2 class="panel__title">All patients</h2>
+                <p class="panel__sub"><?= count($patients) ?> <?= count($patients) === 1 ? 'patient' : 'patients' ?></p>
+            </div>
+            <a href="appointment.php" class="btn btn-light btn-sm">My appointments</a>
+        </div>
 
+        <?php if ($patients): ?>
+            <div class="table-scroll">
+                <table class="data-table stack">
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Contact</th>
+                            <th>Address</th>
+                            <th>Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($patients as $row): ?>
+                            <?php $age = ageFrom($row['pdob'], $today); ?>
+                            <tr>
+                                <td data-label="Patient">
+                                    <div>
+                                        <span class="cell-strong"><?= htmlspecialchars($row['pname']) ?></span><br>
+                                        <span class="cell-muted">
+                                            Born <?= date('j M Y', strtotime($row['pdob'])) ?><?= $age !== null ? ' (' . $age . ')' : '' ?>
+                                        </span>
+                                    </div>
+                                </td>
+                                <td data-label="Contact">
+                                    <div>
+                                        <a href="mailto:<?= htmlspecialchars($row['pemail']) ?>"><?= htmlspecialchars($row['pemail']) ?></a><br>
+                                        <span class="cell-muted"><?= htmlspecialchars($row['pcontact']) ?></span>
+                                    </div>
+                                </td>
+                                <td data-label="Address"><?= htmlspecialchars($row['paddress']) ?></td>
+                                <td data-label="Visits">
+                                    <div>
+                                        <span class="cell-strong"><?= (int)$row['visits'] ?></span><br>
+                                        <span class="cell-muted nowrap">
+                                            <?= $row['latest'] >= $today ? 'Next' : 'Last' ?>: <?= date('j M Y', strtotime($row['latest'])) ?>
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="empty-state">
+                <p>No patients have booked with you yet.</p>
+                <a href="schedule.php" class="btn btn-light">Add a session</a>
+            </div>
+        <?php endif; ?>
+    </section>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

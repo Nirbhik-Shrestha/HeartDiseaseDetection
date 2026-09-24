@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
             $upd->bind_param("ss", $hashed, $token);
             $upd->execute();
             $upd->close();
-            $message = "Password updated successfully! <a href='usersLogin.php'>Sign in here.</a>";
+            $message = "Your password was updated. You can sign in with it now.";
             $msgType = 'success';
             $step    = 3;
         } else {
@@ -101,192 +101,108 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'GET') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient – Forgot Password</title>
-    <link href="https://fonts.googleapis.com/css2?family=Platin:wght@400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Reset Password - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Platin', 'Inter', serif;
-            min-height: 100vh;
+        .reset-steps {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            background-image: linear-gradient(rgba(0,0,50,0.82), rgba(0,0,50,0.82)), url('../images/bg3.jpg');
-            background-size: cover;
-            background-position: center;
-        }
-
-        .card {
-            background: #fff;
-            border-radius: 4px;
-            width: 420px;
-            max-width: 95vw;
-            padding: 50px 60px 60px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: fadeIn 0.4s ease both;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        h1 {
-            font-size: 28px;
-            color: #3c00a0;
-            margin-bottom: 8px;
-            position: relative;
-        }
-
-        h1::after {
-            content: '';
-            width: 30px;
-            height: 4px;
-            border-radius: 3px;
-            background: #3c00a0;
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .subtitle {
-            color: #888;
-            font-size: 13px;
-            margin-top: 20px;
-            margin-bottom: 30px;
-        }
-
-        .steps {
-            display: flex;
-            justify-content: center;
             gap: 8px;
-            margin-bottom: 24px;
-        }
-        .step-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: #ddd;
-            transition: background 0.3s;
-        }
-        .step-dot.active { background: #3c00a0; }
-
-        label {
-            display: block;
-            text-align: left;
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 5px;
-            font-family: 'Inter', sans-serif;
+            margin: 0 0 22px;
+            padding: 0;
+            list-style: none;
         }
 
-        .input-field {
-            background: #eaeaea;
-            border-radius: 3px;
-            display: flex;
-            align-items: center;
-            margin-bottom: 16px;
-            overflow: hidden;
-        }
-
-        .input-field input {
-            width: 100%;
-            background: transparent;
-            border: 0;
-            outline: 0;
-            padding: 18px 15px;
+        .reset-steps li {
+            flex: 1;
+            padding-top: 10px;
+            border-top: 3px solid #e3ebf0;
+            color: #8aa0b2;
             font-size: 14px;
-            font-family: inherit;
+            font-weight: 600;
         }
 
-        .btn-submit {
-            width: 100%;
-            background: #3c00a0;
-            color: #fff;
-            height: 45px;
-            border-radius: 22px;
-            border: 0;
-            cursor: pointer;
-            font-size: 15px;
-            font-family: inherit;
-            transition: background 0.3s;
-            margin-top: 8px;
+        .reset-steps li.is-done,
+        .reset-steps li.is-current {
+            border-top-color: #00a99d;
+            color: #00786f;
         }
-        .btn-submit:hover { background: #5000d6; }
 
-        .msg {
-            border-radius: 6px;
-            padding: 12px 15px;
-            margin-bottom: 18px;
-            font-size: 13px;
-            line-height: 1.5;
-            font-family: 'Inter', sans-serif;
-            text-align: left;
+        .reset-link {
+            word-break: break-all;
         }
-        .msg.success { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
-        .msg.error   { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
 
-        .back-link {
-            display: block;
-            text-align: left;
-            margin-top: 20px;
-            color: #3c00a0;
-            font-size: 13px;
-            text-decoration: none;
-            font-family: 'Inter', sans-serif;
+        .done-icon {
+            display: grid;
+            place-items: center;
+            width: 56px;
+            height: 56px;
+            margin: 0 0 16px;
+            border-radius: 50%;
+            background: #e7f7ee;
+            box-shadow: 0 0 0 6px #f3fbf6;
+            color: #1f7a4a;
+            font-size: 26px;
+            font-weight: 700;
         }
-        .back-link:hover { text-decoration: underline; }
-        .reset-link { color: #3c00a0; word-break: break-all; }
-        .success-icon { font-size: 48px; margin: 10px 0 20px; }
     </style>
 </head>
-<body>
-<div class="card">
-    <h1>Forgot Password</h1>
-    <p class="subtitle">Patient Account Recovery</p>
+<body class="site-page">
 
-    <div class="steps">
-        <div class="step-dot <?= $step >= 1 ? 'active' : '' ?>"></div>
-        <div class="step-dot <?= $step >= 2 ? 'active' : '' ?>"></div>
-        <div class="step-dot <?= $step >= 3 ? 'active' : '' ?>"></div>
+<main class="auth-page">
+    <div class="auth-card">
+        <div class="auth-visual">
+            <div>
+                <a class="auth-visual__logo" href="../index.php"><img src="../images/logoo5.png" alt="DaaktarSahab home"></a>
+                <h2>Locked out?</h2>
+                <p>Reset your password in two quick steps and get back to your heart checks and appointments.</p>
+            </div>
+        </div>
+
+        <div class="auth-form">
+            <h1>Reset your password</h1>
+            <p class="auth-sub">Patient account recovery</p>
+
+            <ol class="reset-steps">
+                <?php foreach ([1 => 'Your email', 2 => 'New password', 3 => 'Done'] as $n => $label): ?>
+                    <li class="<?= $step > $n ? 'is-done' : ($step === $n ? 'is-current' : '') ?>"><?= $label ?></li>
+                <?php endforeach; ?>
+            </ol>
+
+            <?php if ($message): ?>
+                <div class="notice <?= $msgType === 'success' ? 'notice-ok' : 'notice-bad' ?>"><?= $message ?></div>
+            <?php endif; ?>
+
+            <?php if ($step === 1): ?>
+                <form method="POST" action="forgotPassword.php">
+                    <div class="field">
+                        <label for="pemail">Your email address</label>
+                        <input type="email" id="pemail" name="pemail" placeholder="patient@example.com" required autocomplete="email">
+                    </div>
+                    <button type="submit" name="send_token" class="btn btn-primary btn-block">Send reset link</button>
+                </form>
+
+            <?php elseif ($step === 2): ?>
+                <form method="POST" action="forgotPassword.php">
+                    <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
+                    <div class="field">
+                        <label for="new_password">New password</label>
+                        <input type="password" id="new_password" name="new_password" placeholder="At least 6 characters" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <div class="field">
+                        <label for="confirm_password">Confirm new password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat your new password" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <button type="submit" name="reset_password" class="btn btn-primary btn-block">Reset password</button>
+                </form>
+
+            <?php elseif ($step === 3): ?>
+                <div class="done-icon" aria-hidden="true">&#10003;</div>
+                <a href="usersLogin.php" class="btn btn-primary btn-block">Sign in</a>
+            <?php endif; ?>
+
+            <a href="usersLogin.php" class="auth-back">&larr; Back to sign in</a>
+        </div>
     </div>
-
-    <?php if ($message): ?>
-        <div class="msg <?= $msgType ?>"><?= $message ?></div>
-    <?php endif; ?>
-
-    <?php if ($step === 1): ?>
-        <form method="POST" action="forgotPassword.php">
-            <label for="pemail">Your Email Address</label>
-            <div class="input-field">
-                <input type="email" id="pemail" name="pemail" placeholder="patient@example.com" required>
-            </div>
-            <button type="submit" name="send_token" class="btn-submit">Generate Reset Link</button>
-        </form>
-
-    <?php elseif ($step === 2): ?>
-        <form method="POST" action="forgotPassword.php">
-            <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
-            <label for="new_password">New Password</label>
-            <div class="input-field">
-                <input type="password" id="new_password" name="new_password" placeholder="At least 6 characters" required minlength="6">
-            </div>
-            <label for="confirm_password">Confirm Password</label>
-            <div class="input-field">
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat your new password" required minlength="6">
-            </div>
-            <button type="submit" name="reset_password" class="btn-submit">Reset Password</button>
-        </form>
-
-    <?php elseif ($step === 3): ?>
-        <div class="success-icon">✅</div>
-    <?php endif; ?>
-
-    <a href="usersLogin.php" class="back-link">← Back to Sign In</a>
-</div>
+</main>
 </body>
 </html>

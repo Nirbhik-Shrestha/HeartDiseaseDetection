@@ -3,13 +3,20 @@ include_once '../connection.php';
 include_once '../auth.php';
 appSessionStart();
 
-$message = '';
-$error = '<label for="promter" class="form-label"></label>';
+// Already signed in as a patient: nothing to do here.
+if ($_SERVER['REQUEST_METHOD'] === 'GET'
+    && isset($_SESSION['role']) && $_SESSION['role'] === 'patient' && !empty($_SESSION['user'])) {
+    header('Location: index.php');
+    exit();
+}
 
-function loginErrorLabel($text)
-{
-    return '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">'
-        . htmlspecialchars($text) . '</label>';
+$errorText = '';
+// Which tab the page opens on, and what to put back in the fields after an error.
+$mode = isset($_POST['register']) || (isset($_GET['mode']) && $_GET['mode'] === 'register')
+    ? 'register' : 'login';
+$old = ['pname' => '', 'pemail' => '', 'pcontact' => '', 'paddress' => '', 'pdob' => ''];
+foreach ($old as $key => $unused) {
+    $old[$key] = isset($_POST[$key]) ? trim((string)$_POST[$key]) : '';
 }
 
 /** Count patients whose $column equals $value (column names are fixed below). */
@@ -28,52 +35,44 @@ if (isset($_POST['login'])) {
     $password = isset($_POST['ppassword']) ? $_POST['ppassword'] : '';
 
     if (empty($email) || empty($password)) {
-        echo 'Email or Password is empty!';
-        exit;
+        $errorText = 'Please enter your email and password.';
     } elseif (verifyLogin($con, 'patient', $email, $password)) {
         loginAs('patient', $email);
         header('Location: index.php');
         exit();
     } else {
-        $error = loginErrorLabel('Wrong credentials: Invalid email or password');
+        $errorText = 'Wrong email or password. Please try again.';
     }
 }
 
 if (isset($_POST['register'])) {
-    $name     = trim(isset($_POST['pname']) ? $_POST['pname'] : '');
-    $email    = trim(isset($_POST['pemail']) ? $_POST['pemail'] : '');
+    $name     = $old['pname'];
+    $email    = $old['pemail'];
     $rawPass  = isset($_POST['ppassword']) ? $_POST['ppassword'] : '';
-    $contact  = trim(isset($_POST['pcontact']) ? $_POST['pcontact'] : '');
-    $address  = trim(isset($_POST['paddress']) ? $_POST['paddress'] : '');
-    $dob      = isset($_POST['pdob']) ? $_POST['pdob'] : '';
+    $contact  = $old['pcontact'];
+    $address  = $old['paddress'];
+    $dob      = $old['pdob'];
 
     // The browser checks these too, but that is trivially bypassed, so the
     // same rules are enforced here before anything touches the database.
     $dobDate = DateTime::createFromFormat('Y-m-d', $dob);
-    $invalid = null;
     if ($name === '' || !preg_match("/^[a-z ,.'-]+$/i", $name)) {
-        $invalid = 'Please enter a valid name.';
+        $errorText = 'Please enter a valid name.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $invalid = 'Please enter a valid email address.';
+        $errorText = 'Please enter a valid email address.';
     } elseif (strlen($rawPass) < 6) {
-        $invalid = 'Password must be at least 6 characters.';
+        $errorText = 'Password must be at least 6 characters.';
     } elseif (!preg_match('/^9[78]\d{8}$/', $contact)) {
-        $invalid = 'Phone number not in proper format.';
+        $errorText = 'Phone number must be a 10-digit mobile number starting with 97 or 98.';
     } elseif ($address === '') {
-        $invalid = 'Please enter your address.';
+        $errorText = 'Please enter your address.';
     } elseif (!$dobDate || $dobDate->format('Y-m-d') !== $dob || $dob > date('Y-m-d')) {
-        $invalid = 'Please enter a valid date of birth.';
-    }
-
-    $count_email = $count_contact = 0;
-    if ($invalid !== null) {
-        $error = loginErrorLabel($invalid);
+        $errorText = 'Please enter a valid date of birth.';
+    } elseif (countPatientsWhere($con, 'pemail', $email) > 0) {
+        $errorText = 'An account with this email already exists. Try signing in instead.';
+    } elseif (countPatientsWhere($con, 'pcontact', $contact) > 0) {
+        $errorText = 'An account with this phone number already exists.';
     } else {
-        $count_email   = countPatientsWhere($con, 'pemail', $email);
-        $count_contact = countPatientsWhere($con, 'pcontact', $contact);
-    }
-
-    if ($invalid === null && $count_email == 0 && $count_contact == 0) {
         $password = password_hash($rawPass, PASSWORD_BCRYPT);
         $stmt = $con->prepare("INSERT INTO patients (pemail, ppassword, pname, pcontact, paddress, pdob) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("ssssss", $email, $password, $name, $contact, $address, $dob);
@@ -84,278 +83,182 @@ if (isset($_POST['register'])) {
             header("Location: index.php");
             exit();
         }
-        $error = loginErrorLabel('Could not create your account. Please try again.');
-    } else {
-        if ($count_email > 0) {
-            echo '<script>
-                alert("Email already exists!");
-                window.location.href="usersLogin.php";
-            </script>';
-        }
-        if ($count_contact > 0) {
-            echo '<script>
-                alert("Phone Number already exists!");
-                window.location.href="usersLogin.php";
-            </script>';
-        }
+        $errorText = 'Could not create your account. Please try again.';
     }
 }
 ?>
-
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: 'Platin', Times, serif;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Sign In - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
+    <style>
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            margin: 0 0 24px;
+            padding: 4px;
+            border-radius: 12px;
+            background: #eef3f6;
+        }
 
-    .container {
-        width: 100%;
-        height: 100%;
-        background-image: linear-gradient(rgba(0,0,50,0.8),rgba(0,0,50,0.8)), url('../images/bg3.jpg');
-        background-size: cover;
-        background-position: center;
-        position: relative;
-    }
+        .auth-tabs button {
+            padding: 10px 12px;
+            border: 0;
+            border-radius: 9px;
+            background: none;
+            color: #3d566b;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
 
-    .form-box {
-        width: 90%;
-        max-width: 450px;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #fff;
-        padding: 50px 60px 70px;
-        text-align: center;
-    }
+        .auth-tabs button[aria-selected="true"] {
+            background: #fff;
+            color: #12304a;
+            box-shadow: 0 1px 3px rgba(18, 48, 74, 0.12);
+        }
 
-    .form-box h1 {
-        font-size: 30px;
-        margin-bottom: 60px;
-        color: #3c00a0;
-        position: relative;
-    }
+        /* Sign-up-only fields are hidden while signing in. */
+        #authForm:not(.is-register) .register-only {
+            display: none;
+        }
 
-    .form-box h1::after {
-        content: '';
-        width: 30px;
-        height: 4px;
-        border-radius: 3px;
-        background: #3c00a0;
-        position: absolute;
-        bottom: -12px;
-        left: 50%;
-        transform: translateX(-50%);
-    }
+        #authForm.is-register .login-only {
+            display: none;
+        }
 
-    .input-field {
-        background: #eaeaea;
-        margin: 15px 0;
-        border-radius: 3px;
-        display: flex;
-        align-items: center;
-        max-height: 65px;
-        transition: max-height 0.5s;
-        overflow: hidden;
-    }
-
-    input {
-        width: 100%;
-        background: transparent;
-        border: 0;
-        outline: 0;
-        padding: 18px 15px;
-    }
-
-    form p {
-        text-align: left;
-        font-size: 13px;
-        margin-bottom: 20px;
-    }
-
-    form p a {
-        text-decoration: none;
-        color: #3c00a0;
-    }
-
-    .btn-field {
-        width: 100%;
-        display: flex;
-        justify-content: space-between;
-    }
-
-    .btn-field button {
-        flex-basis: 48%;
-        background: #3c00a0;
-        color: #fff;
-        height: 40px;
-        border-radius: 20px;
-        border: 0;
-        outline: 0;
-        cursor: pointer;
-        transition: background 1s;
-    }
-
-    .input-group {
-        height: 280px;
-        display: flex;
-        flex-wrap: wrap;
-        flex-direction: column;
-        gap: 0px 20px;
-    }
-
-    .btn-field button.disable {
-        background: #eaeaea;
-        color: #555;
-    }
-
-    #hiddenField1 { display: none; }
-    #hiddenField2 { display: none; }
-    #hiddenField3 { display: none; }
-    #hiddenField4 { display: none; }
-    #forgotPass { display: block; }
-</style>
+        .auth-links {
+            margin: -6px 0 18px;
+            font-size: 15px;
+        }
+    </style>
 </head>
-<body>
+<body class="site-page">
 
-<div class="container">
-    <div class="form-box" id="formbox">
-        <h1 id="title">Sign In</h1>
-        <form action="usersLogin.php" method="POST">
-            <?php if (!empty($error)) echo $error; ?>
-            <div class="input-group">
-                <div class="input-field" id="hiddenField1">
-                    <input type="text" name="pname" placeholder="Name" id="name">
-                </div>
+<main class="auth-page">
+    <div class="auth-card">
+        <div class="auth-visual">
+            <div>
+                <a class="auth-visual__logo" href="../index.php"><img src="../images/logoo5.png" alt="DaaktarSahab home"></a>
+                <h2>Your heart, in good hands</h2>
+                <p>Check your heart risk, book a cardiologist and read your doctor's advice, all in one place.</p>
+            </div>
+        </div>
 
-                <div class="input-field">
-                    <input type="email" name="pemail" placeholder="Email" required id="email">
-                </div>
+        <div class="auth-form">
+            <h1 id="authTitle"><?= $mode === 'register' ? 'Create your account' : 'Welcome back' ?></h1>
+            <p class="auth-sub" id="authSub"><?= $mode === 'register' ? 'It takes a minute. You can take a heart check straight after.' : 'Sign in to your patient account.' ?></p>
 
-                <div class="input-field">
-                    <input type="password" name="ppassword" placeholder="Password" required>
-                </div>
-
-                <div class="input-field" id="hiddenField2">
-                    <input type="text" name="pcontact" placeholder="Contact" id="contactNumber">
-                </div>
-
-                <div class="input-field" id="hiddenField3">
-                    <input type="text" name="paddress" placeholder="Address" id="address">
-                </div>
-
-                <div class="input-field" id="hiddenField4">
-                    <input type="date" name="pdob" placeholder="Date of Birth">
-                </div>
+            <div class="auth-tabs" role="tablist">
+                <button type="button" role="tab" data-mode="login" aria-selected="<?= $mode === 'login' ? 'true' : 'false' ?>">Sign in</button>
+                <button type="button" role="tab" data-mode="register" aria-selected="<?= $mode === 'register' ? 'true' : 'false' ?>">Create account</button>
             </div>
 
-            <p id="forgotPass">Forgot Password? <a href='forgotPassword.php'>Click Here!</a></p>
+            <?php if ($errorText !== ''): ?>
+                <div class="notice notice-bad" role="alert"><?= htmlspecialchars($errorText) ?></div>
+            <?php endif; ?>
 
-            <div class="btn-field">
-                <button type="submit" id="signInBtn" name="login">Sign In</button>
-                <button type="button" id="signUpBtn" class="disable">Sign Up</button>
-            </div>
-        </form>
+            <form action="usersLogin.php" method="POST" id="authForm" class="<?= $mode === 'register' ? 'is-register' : '' ?>" novalidate>
+                <div class="field register-only">
+                    <label for="name">Full name</label>
+                    <input type="text" name="pname" id="name" value="<?= htmlspecialchars($old['pname']) ?>" autocomplete="name">
+                </div>
+
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input type="email" name="pemail" id="email" value="<?= htmlspecialchars($old['pemail']) ?>" required autocomplete="email">
+                </div>
+
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" name="ppassword" id="password" required autocomplete="current-password">
+                    <p class="hint register-only">At least 6 characters.</p>
+                </div>
+
+                <p class="auth-links login-only"><a href="forgotPassword.php">Forgot your password?</a></p>
+
+                <div class="form-grid register-only">
+                    <div class="field">
+                        <label for="contactNumber">Mobile number</label>
+                        <input type="text" name="pcontact" id="contactNumber" value="<?= htmlspecialchars($old['pcontact']) ?>" inputmode="numeric" placeholder="98XXXXXXXX" autocomplete="tel">
+                    </div>
+                    <div class="field">
+                        <label for="dob">Date of birth</label>
+                        <input type="date" name="pdob" id="dob" value="<?= htmlspecialchars($old['pdob']) ?>" max="<?= date('Y-m-d') ?>">
+                    </div>
+                </div>
+
+                <div class="field register-only">
+                    <label for="address">Address</label>
+                    <input type="text" name="paddress" id="address" value="<?= htmlspecialchars($old['paddress']) ?>" autocomplete="street-address">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="submitBtn"
+                        name="<?= $mode === 'register' ? 'register' : 'login' ?>">
+                    <?= $mode === 'register' ? 'Create account' : 'Sign in' ?>
+                </button>
+            </form>
+
+            <a class="auth-back" href="../index.php">&larr; Back to DaaktarSahab</a>
+        </div>
     </div>
-</div>
+</main>
 
 <script>
-    document.getElementById('contactNumber').addEventListener('input', function (e) 
-            {
-                const value = e.target.value;
-                if (!/^9[78]\d{8}$/.test(value)) 
-                {
-                    e.target.setCustomValidity('Phone number not in proper format.');
-                }
-                else 
-                {
-                    e.target.setCustomValidity('');
-                }
+    (function () {
+        var form = document.getElementById('authForm');
+        var submit = document.getElementById('submitBtn');
+        var title = document.getElementById('authTitle');
+        var sub = document.getElementById('authSub');
+        var tabs = document.querySelectorAll('.auth-tabs button');
+        var registerFields = ['name', 'contactNumber', 'dob', 'address'].map(function (id) {
+            return document.getElementById(id);
+        });
+
+        // Switch between signing in and creating an account. The submit
+        // button's name tells usersLogin.php which one was sent.
+        function setMode(mode) {
+            var register = mode === 'register';
+            form.classList.toggle('is-register', register);
+            submit.name = register ? 'register' : 'login';
+            submit.textContent = register ? 'Create account' : 'Sign in';
+            title.textContent = register ? 'Create your account' : 'Welcome back';
+            sub.textContent = register ? 'It takes a minute. You can take a heart check straight after.' : 'Sign in to your patient account.';
+            document.getElementById('password').autocomplete = register ? 'new-password' : 'current-password';
+            registerFields.forEach(function (f) { f.required = register; });
+            tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.mode === mode ? 'true' : 'false'); });
+        }
+
+        tabs.forEach(function (t) {
+            t.addEventListener('click', function () { setMode(t.dataset.mode); });
+        });
+        setMode(form.classList.contains('is-register') ? 'register' : 'login');
+
+        // Browser-side checks, mirroring the rules usersLogin.php enforces.
+        var rules = {
+            contactNumber: [/^9[78]\d{8}$/, 'Phone number must be a 10-digit mobile number starting with 97 or 98.'],
+            email: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address.'],
+            name: [/^[a-z ,.'-]+$/i, "Please use letters, spaces and . , ' - only."]
+        };
+        Object.keys(rules).forEach(function (id) {
+            var input = document.getElementById(id);
+            input.addEventListener('input', function () {
+                input.setCustomValidity(input.value === '' || rules[id][0].test(input.value) ? '' : rules[id][1]);
             });
-    document.getElementById('email').addEventListener('input', function (e) 
-            {
-                const value = e.target.value;
-                if (!/^([a-zA-Z0-9._-]+)@([a-zA-Z0-9.-]+)\.([a-z]{2,20})(\.[a-z]{2,20})?$/.test(value)) 
-                {
-                    e.target.setCustomValidity('Your email is not in proper format.');
-                } 
-                else 
-                {
-                    e.target.setCustomValidity('');
-                }
-            });
+        });
 
-    document.getElementById('name').addEventListener('input', function (e) 
-            {
-                const value = e.target.value;
-                if (!/^[a-z ,.'-]+$/i.test(value)) 
-                {
-                    e.target.setCustomValidity('Your name is not in proper format.');
-                } 
-                else 
-                {
-                    e.target.setCustomValidity('');
-                }
-            });
-    document.getElementById('address').addEventListener('input', function (e) 
-            {
-                const value = e.target.value;
-                if (!/^[a-z ,.'-]+$/i.test(value)) 
-                {
-                    e.target.setCustomValidity('Your name is not in proper format.');
-                } 
-                else 
-                {
-                    e.target.setCustomValidity('');
-                }
-            });
-
-    let signUpBtn = document.getElementById("signUpBtn");
-    let signInBtn = document.getElementById("signInBtn");
-    let hiddenField1 = document.getElementById("hiddenField1");
-    let hiddenField2 = document.getElementById("hiddenField2");
-    let hiddenField3 = document.getElementById("hiddenField3");
-    let hiddenField4 = document.getElementById("hiddenField4");
-    let title = document.getElementById("title");
-    let formbox = document.getElementById("formbox");
-    let forgotPass = document.getElementById("forgotPass");
-
-    signUpBtn.onclick = function() {
-        hiddenField1.style.display = 'block';
-        hiddenField2.style.display = 'block';
-        hiddenField3.style.display = 'block';
-        hiddenField4.style.display = 'block';
-        title.innerHTML = "Sign Up";
-        signInBtn.classList.add("disable");
-        signUpBtn.classList.remove("disable");
-        signUpBtn.type = 'submit';
-        signUpBtn.name = 'register';
-        formbox.style.maxWidth = 'fit-content';
-        forgotPass.style.display = 'none';
-    }
-
-    signInBtn.onclick = function() {
-        hiddenField1.style.display = 'none';
-        hiddenField2.style.display = 'none';
-        hiddenField3.style.display = 'none';
-        hiddenField4.style.display = 'none';
-        title.innerHTML = "Sign In";
-        signUpBtn.classList.add("disable");
-        signInBtn.classList.remove("disable");
-        signUpBtn.type = 'button';
-        formbox.style.maxWidth = '450px';
-        forgotPass.style.display = 'block';
-    }
-
-    // document.getElementById('contactNumber').addEventListener('input', validateContactNumber);
+        // novalidate lets hidden sign-up fields be skipped; check the visible ones here.
+        form.addEventListener('submit', function (e) {
+            if (!form.checkValidity()) {
+                e.preventDefault();
+                form.reportValidity();
+            }
+        });
+    })();
 </script>
-
-
 </body>
 </html>

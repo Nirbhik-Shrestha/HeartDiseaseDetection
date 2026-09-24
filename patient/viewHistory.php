@@ -32,6 +32,13 @@ foreach (array_reverse($rows) as $row) {
 
 $latest   = $trend ? $trend[count($trend) - 1] : null;
 $previous = count($trend) > 1 ? $trend[count($trend) - 2] : null;
+
+$notices = [
+    'updated' => 'Your reading was updated and its risk score recalculated.',
+    'deleted' => 'The reading was deleted.',
+];
+$notice = isset($_GET['msg'], $notices[$_GET['msg']]) ? $notices[$_GET['msg']] : null;
+$username = $userfetch["pname"];
 ?>
 
 <!DOCTYPE html>
@@ -39,104 +46,35 @@ $previous = count($trend) > 1 ? $trend[count($trend) - 2] : null;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>My Prediction History</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>My Prediction History - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        .container{
-            max-width: fit-content !important;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1em;
-        }
-
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: center;
-        }
-
-        th {
-            background-color: #f2f2f2;
-        }
-
-        .actions a {
-            margin: 0 5px;
-            text-decoration: none;
-        }
-
-        .btn-delete {
-            color: red;
-        }
-
-        .btn-edit {
-            color: orange;
-        }
-
-        .btn-view {
-            color: green;
-        }
-
-        .btn-pdf {
-            color: #00897b;
-        }
-
-        .risk-pill {
-            display: inline-block;
-            min-width: 64px;
-            padding: 2px 10px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.9em;
-        }
-        .risk-pill.high { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
-        .risk-pill.low  { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
-        .risk-pill.none { color: #888; }
-
         /* ---- Risk score trend ---- */
-        .trend-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 18px 20px 12px;
-            margin: 10px 0 24px;
-            min-width: 320px;
-        }
         .trend-head {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             flex-wrap: wrap;
             gap: 12px;
-        }
-        .trend-head h2 {
-            margin: 0;
-            font-size: 1.15rem;
-            color: #2d3748;
-        }
-        .trend-sub {
-            margin: 4px 0 0;
-            font-size: 0.85rem;
-            color: #718096;
+            margin: 0 0 8px;
         }
         .trend-stat {
             text-align: right;
         }
         .trend-stat-value {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: #1a202c;
+            color: #12304a;
+            font-size: 34px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
         }
         .trend-stat-value small {
-            font-size: 0.85rem;
+            color: #6b8193;
+            font-size: 15px;
             font-weight: 500;
-            color: #718096;
         }
         .trend-stat-delta {
-            font-size: 0.85rem;
-            color: #4a5568;
+            color: #3d566b;
+            font-size: 15px;
         }
         .trend-chart {
             position: relative;
@@ -149,52 +87,67 @@ $previous = count($trend) > 1 ? $trend[count($trend) - 2] : null;
             overflow: visible;
         }
         .trend-chart .grid line { stroke: #edf2f7; stroke-width: 1; }
-        .trend-chart .axis text { fill: #718096; font-size: 11px; }
+        .trend-chart .axis text { fill: #6b8193; font-size: 12px; }
         .trend-chart .threshold line { stroke: #a0aec0; stroke-width: 1; }
-        .trend-chart .threshold text { fill: #4a5568; font-size: 11px; }
+        .trend-chart .threshold text { fill: #3d566b; font-size: 12px; }
         .trend-chart .series-line { fill: none; stroke: #00897b; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
         .trend-chart .series-dot { fill: #00897b; stroke: #fff; stroke-width: 2; }
         .trend-chart .series-dot.active { r: 6; }
-        .trend-chart .end-label { fill: #1a202c; font-size: 12px; font-weight: 600; }
+        .trend-chart .end-label { fill: #12304a; font-size: 13px; font-weight: 600; }
         .trend-chart .crosshair { stroke: #a0aec0; stroke-width: 1; }
         .trend-tooltip {
             position: absolute;
-            pointer-events: none;
-            background: #1a202c;
-            color: #fff;
-            font-size: 12px;
-            line-height: 1.4;
+            display: none;
             padding: 6px 10px;
             border-radius: 6px;
+            background: #12304a;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.4;
             white-space: nowrap;
+            pointer-events: none;
             transform: translate(-50%, calc(-100% - 12px));
-            display: none;
         }
         .trend-tooltip .tt-key {
             display: inline-block;
             width: 12px;
             height: 2px;
+            margin-right: 6px;
             background: #4fd1c5;
             vertical-align: middle;
-            margin-right: 6px;
         }
-        .trend-empty {
-            color: #718096;
-            font-size: 0.95rem;
-            padding: 16px 0 8px;
+
+        .row-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            white-space: nowrap;
         }
     </style>
 </head>
-<body>
-<div class="container">
-    <h1>My Prediction History</h1>
+<body class="site-page">
+
+<?php include('../patientHeader.html'); ?>
+
+<section class="page-hero">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">My history</span>
+        <h1>Prediction history</h1>
+        <p>Every heart check you have taken, with its risk score. Open one to see the full result or download it as a PDF.</p>
+    </div>
+</section>
+
+<main class="page-body">
+    <?php if ($notice): ?>
+        <div class="notice notice-ok"><?= htmlspecialchars($notice) ?></div>
+    <?php endif; ?>
 
     <?php if ($trend): ?>
-        <section class="trend-card" aria-labelledby="trendTitle">
+        <section class="panel" aria-labelledby="trendTitle">
             <div class="trend-head">
                 <div>
-                    <h2 id="trendTitle">Risk score over time</h2>
-                    <p class="trend-sub">0 to 100. Readings above 50 are classed as high risk.</p>
+                    <h2 class="panel__title" id="trendTitle">Risk score over time</h2>
+                    <p class="panel__sub">0 to 100. Readings above 50 are classed as high risk.</p>
                 </div>
                 <div class="trend-stat">
                     <div class="trend-stat-value"><?= $latest['score'] ?><small>/100 latest</small></div>
@@ -214,61 +167,79 @@ $previous = count($trend) > 1 ? $trend[count($trend) - 2] : null;
             <?php if (count($trend) > 1): ?>
                 <div class="trend-chart" id="trendChart"></div>
             <?php else: ?>
-                <p class="trend-empty">Take another assessment later to see how your score changes over time.</p>
+                <div class="empty-state">
+                    <p>Take another heart check later to see how your score changes over time.</p>
+                </div>
             <?php endif; ?>
         </section>
     <?php endif; ?>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Risk score</th>
-                <th>Age</th>
-                <th>BP</th>
-                <th>Cholesterol</th>
-                <th>Max Heart Rate</th>
-                <th>ST Depression</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if ($rows): ?>
-                <?php foreach ($rows as $row): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($row['timestamp'] ?? 'N/A') ?></td>
-                        <td>
-                            <?php if ($row['risk_score'] === null): ?>
-                                <span class="risk-pill none">Not scored</span>
-                            <?php else: ?>
-                                <?php $high = isHighRisk($row['risk_score']); ?>
-                                <span class="risk-pill <?= $high ? 'high' : 'low' ?>">
-                                    <?= riskPercent($row['risk_score']) ?> &middot; <?= $high ? 'High' : 'Low' ?>
-                                </span>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= (int)$row['age'] ?></td>
-                        <td><?= (int)$row['trestbps'] ?></td>
-                        <td><?= (int)$row['chol'] ?></td>
-                        <td><?= (int)$row['thalach'] ?></td>
-                        <td><?= htmlspecialchars($row['oldpeak']) ?></td>
-                        <td class="actions">
-                            <a class="btn-view" href="viewResult.php?id=<?= $row['pdid'] ?>">View</a>
-                            <a class="btn-pdf" href="downloadAssessment.php?id=<?= $row['pdid'] ?>">PDF</a>
-                            <a class="btn-edit" href="editData.php?id=<?= $row['pdid'] ?>">Edit</a>
-                            <a class="btn-delete" href="deleteData.php?id=<?= $row['pdid'] ?>" onclick="return confirm('Are you sure you want to delete this record?');">Delete</a>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <tr><td colspan="8">No prediction records found.</td></tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+    <section class="panel">
+        <div class="panel__head">
+            <div>
+                <h2 class="panel__title">All readings</h2>
+                <p class="panel__sub"><?= count($rows) ?> <?= count($rows) === 1 ? 'reading' : 'readings' ?></p>
+            </div>
+            <a href="form.php" class="btn btn-primary btn-sm">+ New heart check</a>
+        </div>
 
-    <a href="form.php" class="button">+ New Prediction</a>
-    <a href="index.php" class="button">Back</a>
-</div>
+        <?php if ($rows): ?>
+            <div class="table-scroll">
+                <table class="data-table stack">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Risk score</th>
+                            <th>Age</th>
+                            <th>BP</th>
+                            <th>Cholesterol</th>
+                            <th>Max heart rate</th>
+                            <th>ST depression</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($rows as $row): ?>
+                            <tr>
+                                <td class="cell-strong nowrap" data-label="Date"><div><?= date('j M Y', strtotime($row['timestamp'])) ?><br><span class="cell-muted"><?= date('g:i A', strtotime($row['timestamp'])) ?></span></div></td>
+                                <td data-label="Risk score">
+                                    <?php if ($row['risk_score'] === null): ?>
+                                        <span class="badge badge-muted">Not scored</span>
+                                    <?php else: ?>
+                                        <?php $high = isHighRisk($row['risk_score']); ?>
+                                        <span class="badge <?= $high ? 'badge-danger' : 'badge-success' ?>">
+                                            <?= riskPercent($row['risk_score']) ?> &middot; <?= $high ? 'High' : 'Low' ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="Age"><?= (int)$row['age'] ?></td>
+                                <td data-label="BP"><?= (int)$row['trestbps'] ?></td>
+                                <td data-label="Cholesterol"><?= (int)$row['chol'] ?></td>
+                                <td data-label="Max heart rate"><?= (int)$row['thalach'] ?></td>
+                                <td data-label="ST depression"><?= htmlspecialchars($row['oldpeak']) ?></td>
+                                <td>
+                                    <div class="row-actions">
+                                        <a class="btn btn-light btn-sm" href="viewResult.php?id=<?= $row['pdid'] ?>">View</a>
+                                        <a class="btn btn-light btn-sm" href="downloadAssessment.php?id=<?= $row['pdid'] ?>">PDF</a>
+                                        <a class="btn btn-light btn-sm" href="editData.php?id=<?= $row['pdid'] ?>">Edit</a>
+                                        <a class="btn btn-danger btn-sm" href="deleteData.php?id=<?= $row['pdid'] ?>" onclick="return confirm('Delete this reading? This cannot be undone.');">Delete</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="empty-state">
+                <p>You haven't taken a heart check yet.</p>
+                <a href="form.php" class="btn btn-primary">Take your first check</a>
+            </div>
+        <?php endif; ?>
+    </section>
+</main>
+
+<?php include('../footer.html'); ?>
 
 <?php if (count($trend) > 1): ?>
 <script>

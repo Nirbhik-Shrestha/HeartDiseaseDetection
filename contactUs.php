@@ -1,172 +1,201 @@
 <?php
 include("connection.php");
+session_start();
 
-if(isset($_POST["submit"])) {
-    $name = $_POST["rname"];
-    $email = $_POST["remail"];
-    $subject = $_POST["rsubject"];
-    $message = $_POST["rmessage"];
+$errors = [];
+$values = ['rname' => '', 'remail' => '', 'rsubject' => '', 'rmessage' => ''];
 
-    $sql = "INSERT INTO review (rname, remail, rsubject, rmessage) VALUES ('$name','$email','$subject','$message')";
-    $result = mysqli_query($con, $sql);
-    if($result) {
-        echo "<script>alert('Message Submitted!');</script>";
-    } else {
-        echo "<script>alert('Cannot submit message right now. Please try again later.');</script>";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    foreach ($values as $key => $unused) {
+        $values[$key] = isset($_POST[$key]) ? trim((string)$_POST[$key]) : '';
+    }
+
+    if ($values['rname'] === '') {
+        $errors[] = 'Please enter your name.';
+    }
+    if (!filter_var($values['remail'], FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Please enter a valid email address so we can reply.';
+    }
+    if ($values['rsubject'] === '') {
+        $errors[] = 'Please add a subject.';
+    }
+    if ($values['rmessage'] === '') {
+        $errors[] = 'Please write your message.';
+    } elseif (mb_strlen($values['rmessage']) > 5000) {
+        $errors[] = 'Your message can be at most 5000 characters.';
+    }
+
+    if (!$errors) {
+        $name    = mb_substr($values['rname'], 0, 100);
+        $email   = mb_substr($values['remail'], 0, 100);
+        $subject = mb_substr($values['rsubject'], 0, 150);
+        $stmt = $con->prepare("INSERT INTO contact_messages (name, email, subject, message) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $name, $email, $subject, $values['rmessage']);
+        $ok = $stmt->execute();
+        $stmt->close();
+
+        if ($ok) {
+            // Redirect so refreshing the page does not send the message twice.
+            $_SESSION['contact_sent'] = true;
+            $con->close();
+            header("Location: contactUs.php");
+            exit();
+        }
+        $errors[] = 'Your message could not be sent right now. Please try again later, or email us directly.';
     }
 }
-?>
 
+$sent = !empty($_SESSION['contact_sent']);
+unset($_SESSION['contact_sent']);
+$con->close();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact DaaktarSahab</title>
-    <link rel="stylesheet" href="css/index.css">
+    <title>Contact Us - DaaktarSahab</title>
+    <link rel="stylesheet" href="css/site.css">
     <style>
-        body {
-            /* font-family: Arial, sans-serif; */
+        .contact-list {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            background-color: #f4f7f6;
-        }
-        .banner {
-            background-image: url('images/bg2.jpg');
-            background-size: cover;
-            background-repeat: no-repeat;
-            height: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            text-align: center;
-        }
-        .banner-text {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 20px;
-            border-radius: 8px;
-            backdrop-filter: blur(5px);
-
-        }
-        .container {
-            width: 80%;
-            margin: 0 auto;
-            padding: 20px 0;
-        }
-        .contactus {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: -100px;
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-        }
-        .contactus h2, .contactus h3 {
-            color: #00a99d;
-        }
-        .contactus p, .contactus ul {
-            color: #333;
-            line-height: 1.6;
-        }
-        .contact-info, .contact-form {
-            flex: 1 1 45%;
-            padding: 20px;
-        }
-        .contact-info ul {
             list-style: none;
-            padding: 0;
         }
-        .contact-info ul li {
+
+        .contact-list li {
             display: flex;
-            align-items: center;
-            margin: 10px 0;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 14px 0;
+            border-bottom: 1px solid #eef3f6;
         }
-        .contact-info ul li img {
-            width: 20px;
-            margin-right: 10px;
+
+        .contact-list li:last-child {
+            border-bottom: none;
         }
-        .contact-form {
-            display: flex;
-            flex-direction: column;
+
+        .contact-list img {
+            flex: none;
+            width: 40px;
+            height: 40px;
+            padding: 9px;
+            border-radius: 50%;
+            background: #e6f6f4;
         }
-        .contact-form label {
-            margin: 10px 0 5px;
-            color: #333;
+
+        .contact-list span {
+            display: block;
+            color: #6b8193;
+            font-size: 14px;
         }
-        .contact-form input, .contact-form textarea {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            margin-bottom: 10px;
-            font-size: 1em;
+
+        .contact-list a,
+        .contact-list strong {
+            color: #12304a;
+            font-size: 16.5px;
+            font-weight: 600;
+            text-decoration: none;
         }
-        .contact-form button {
-            padding: 10px 20px;
-            background: #00a99d;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: background 0.3s;
+
+        .site-page .field textarea {
+            width: 100%;
+            min-height: 160px;
+            padding: 12px 14px;
+            border: 1px solid #cfdbe3;
+            border-radius: 10px;
+            background: #fff;
+            color: #12304a;
+            font-size: 16px;
+            line-height: 1.5;
+            resize: vertical;
         }
-        .contact-form button:hover {
-            background: #007d73;
+
+        .site-page .field textarea:focus {
+            outline: none;
+            border-color: #00a99d;
+            box-shadow: 0 0 0 4px rgba(0, 169, 157, 0.18);
         }
     </style>
 </head>
-<body>
+<body class="site-page">
 
 <?php include('mainHeader.html'); ?>
 
-<div class="banner">
-    <div class="banner-text">
-        <h1>Contact DaaktarSahab</h1>
-        <p>We are here to assist you. Reach out to us through any of the methods below.</p>
+<section class="page-hero">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">Contact</span>
+        <h1>Get in touch</h1>
+        <p>Questions, concerns or feedback? Send us a message and we'll get back to you by email.</p>
     </div>
-</div>
+</section>
 
-<div class="container">
-    <div class="contactus">
-        <div class="contact-info">
-            <h2>Contact Us</h2>
-            <p>If you have any questions, concerns, or feedback, please feel free to get in touch with us. We're here to help and support you.</p>
-            <br><br>
-            <h3>Our Contact Information</h3>
+<main class="page-body">
+    <?php if ($sent): ?>
+        <div class="notice notice-ok">Thanks, your message was sent. We'll reply to the email address you gave.</div>
+    <?php endif; ?>
+
+    <?php if ($errors): ?>
+        <div class="notice notice-bad" role="alert">
+            <strong>Your message was not sent:</strong>
             <ul>
-                <li><img src="images/mail.png" alt="Email Icon"><strong>Email:</strong> support@daaktarsahab.com</li>
-                <li><img src="images/contact.png" alt="Phone Icon"><strong>Phone:</strong> +977-1-2345678</li>
-                <li><img src="images/location.png" alt="Location Icon"><strong>Address:</strong> 123 Healthcare Street, Kathmandu, Nepal</li>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= htmlspecialchars($error) ?></li>
+                <?php endforeach; ?>
             </ul>
         </div>
-        <div class="contact-form">
-            <h3>Send Us a Message</h3>
+    <?php endif; ?>
+
+    <div class="page-grid">
+        <section class="panel">
+            <div class="panel__head">
+                <h2 class="panel__title">Send us a message</h2>
+            </div>
+
             <form action="contactUs.php" method="POST">
-                <label for="name">Name:</label>
-                <input type="text" id="name" name="rname" required><br>
-
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="remail" required><br>
-
-                <label for="subject">Subject:</label>
-                <input type="text" id="subject" name="rsubject" required><br>
-
-                <label for="message">Message:</label>
-                <textarea id="message" name="rmessage" rows="5" required></textarea><br><br>
-
-                <button type="submit" name="submit">Send Message</button>
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="name">Your name</label>
+                        <input type="text" id="name" name="rname" value="<?= htmlspecialchars($values['rname']) ?>" maxlength="100" required autocomplete="name">
+                    </div>
+                    <div class="field">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="remail" value="<?= htmlspecialchars($values['remail']) ?>" maxlength="100" required autocomplete="email">
+                    </div>
+                    <div class="field field--wide">
+                        <label for="subject">Subject</label>
+                        <input type="text" id="subject" name="rsubject" value="<?= htmlspecialchars($values['rsubject']) ?>" maxlength="150" required>
+                    </div>
+                    <div class="field field--wide">
+                        <label for="message">Message</label>
+                        <textarea id="message" name="rmessage" maxlength="5000" required><?= htmlspecialchars($values['rmessage']) ?></textarea>
+                        <p class="hint">Please don't include medical test results here. For advice about your health, book a doctor.</p>
+                    </div>
+                </div>
+                <button type="submit" name="submit" class="btn btn-primary">Send message</button>
             </form>
-        </div>
+        </section>
+
+        <aside class="panel">
+            <p class="panel__label">Contact details</p>
+            <ul class="contact-list">
+                <li>
+                    <img src="images/mail.png" alt="">
+                    <div><span>Email</span><a href="mailto:support@daaktarsahab.com">support@daaktarsahab.com</a></div>
+                </li>
+                <li>
+                    <img src="images/contact.png" alt="">
+                    <div><span>Phone</span><a href="tel:+97712345678">+977-1-2345678</a></div>
+                </li>
+                <li>
+                    <img src="images/location.png" alt="">
+                    <div><span>Address</span><strong>123 Healthcare Street, Kathmandu, Nepal</strong></div>
+                </li>
+            </ul>
+        </aside>
     </div>
-</div>
+</main>
 
 <?php include('footer.html'); ?>
-
 </body>
 </html>

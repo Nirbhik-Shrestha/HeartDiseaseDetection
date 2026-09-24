@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
             $upd->bind_param("ss", $hashed, $token);
             $upd->execute();
             $upd->close();
-            $message = "Password updated successfully! <a href='doctorLogin.php'>Sign in here.</a>";
+            $message = "Your password was updated. You can sign in with it now.";
             $msgType = 'success';
             $step    = 3;
         } else {
@@ -101,184 +101,117 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'GET') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor – Forgot Password</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Doctor Password Reset - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            min-height: 100vh;
+        .reset-steps {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0d1117 url("../images/bg.jpg") no-repeat center center / cover;
-            position: relative;
+            gap: 8px;
+            margin: 0 0 22px;
+            padding: 0;
+            list-style: none;
         }
 
-        body::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(2px);
-        }
-
-        .card {
-            position: relative;
-            z-index: 1;
-            background: rgba(255, 255, 255, 0.07);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            width: 420px;
-            max-width: 95vw;
-            overflow: hidden;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        .card-header {
-            background: linear-gradient(135deg, #0f6367 0%, #1aa6ac 100%);
-            padding: 28px 30px 24px;
-            text-align: center;
-        }
-
-        .card-header .icon {
-            width: 56px; height: 56px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 14px;
-            font-size: 24px;
-        }
-
-        .card-header h1 { color: #fff; font-size: 1.4rem; font-weight: 700; }
-        .card-header p  { color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-top: 5px; }
-
-        .card-body { padding: 28px 30px 32px; }
-
-        .steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
-        .step-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: background 0.3s; }
-        .step-dot.active { background: #1aa6ac; }
-
-        label {
-            display: block;
-            color: rgba(255,255,255,0.75);
-            font-size: 0.78rem;
-            font-weight: 500;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-        }
-
-        .input-wrap { position: relative; margin-bottom: 18px; }
-
-        .input-wrap input {
-            width: 100%;
-            padding: 13px 16px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.18);
-            border-radius: 10px;
-            color: #fff;
-            font-size: 0.95rem;
-            font-family: inherit;
-            outline: none;
-            transition: border-color 0.25s, background 0.25s;
-        }
-        .input-wrap input::placeholder { color: rgba(255,255,255,0.35); }
-        .input-wrap input:focus { border-color: #1aa6ac; background: rgba(26,166,172,0.1); }
-
-        .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #0f6367, #1aa6ac);
-            border: none;
-            border-radius: 10px;
-            color: #fff;
-            font-size: 1rem;
+        .reset-steps li {
+            flex: 1;
+            padding-top: 10px;
+            border-top: 3px solid #e3ebf0;
+            color: #8aa0b2;
+            font-size: 14px;
             font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            transition: opacity 0.2s, transform 0.15s;
-            margin-top: 4px;
         }
-        .btn-primary:hover  { opacity: 0.9; transform: translateY(-1px); }
-        .btn-primary:active { transform: translateY(0); }
 
-        .msg { border-radius: 10px; padding: 13px 16px; margin-bottom: 20px; font-size: 0.88rem; line-height: 1.5; }
-        .msg.success { background: rgba(26,166,172,0.15); border: 1px solid rgba(26,166,172,0.4); color: #6ef0f5; }
-        .msg.error   { background: rgba(255,62,62,0.12);  border: 1px solid rgba(255,62,62,0.35);  color: #ff8080; }
-
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.85rem;
-            text-decoration: none;
-            transition: color 0.2s;
+        .reset-steps li.is-done,
+        .reset-steps li.is-current {
+            border-top-color: #00a99d;
+            color: #00786f;
         }
-        .back-link:hover { color: #1aa6ac; }
-        .reset-link { color: #1aa6ac; word-break: break-all; }
-        .success-icon { font-size: 48px; text-align: center; margin: 10px 0 16px; }
+
+        .reset-link {
+            word-break: break-all;
+        }
+
+        /* The doctor photo instead of the patients' heart image. */
+        .auth-visual.is-doctor {
+            background: #9fd9d8 url("../images/drbanner.jpg") 82% top / cover no-repeat;
+        }
+
+        .auth-visual.is-doctor::before {
+            background: linear-gradient(180deg, rgba(234, 247, 251, 0.95) 0%, rgba(234, 247, 251, 0.7) 45%, rgba(234, 247, 251, 0) 80%);
+        }
+
+        .done-icon {
+            display: grid;
+            place-items: center;
+            width: 56px;
+            height: 56px;
+            margin: 0 0 16px;
+            border-radius: 50%;
+            background: #e7f7ee;
+            box-shadow: 0 0 0 6px #f3fbf6;
+            color: #1f7a4a;
+            font-size: 26px;
+            font-weight: 700;
+        }
     </style>
 </head>
-<body>
-<div class="card">
-    <div class="card-header">
-        <div class="icon">🔐</div>
-        <h1>Forgot Password</h1>
-        <p>Doctor Account Recovery</p>
-    </div>
-    <div class="card-body">
-        <div class="steps">
-            <div class="step-dot <?= $step >= 1 ? 'active' : '' ?>"></div>
-            <div class="step-dot <?= $step >= 2 ? 'active' : '' ?>"></div>
-            <div class="step-dot <?= $step >= 3 ? 'active' : '' ?>"></div>
+<body class="site-page">
+
+<main class="auth-page">
+    <div class="auth-card">
+        <div class="auth-visual is-doctor">
+            <div>
+                <a class="auth-visual__logo" href="../index.php"><img src="../images/logoo5.png" alt="DaaktarSahab home"></a>
+                <h2>Locked out?</h2>
+                <p>Reset your password in two quick steps and get back to your sessions and appointments.</p>
+            </div>
         </div>
 
-        <?php if ($message): ?>
-            <div class="msg <?= $msgType ?>"><?= $message ?></div>
-        <?php endif; ?>
+        <div class="auth-form">
+            <h1>Reset your password</h1>
+            <p class="auth-sub">Doctor account recovery</p>
 
-        <?php if ($step === 1): ?>
-            <form method="POST" action="forgotPassword.php">
-                <div class="input-wrap">
-                    <label for="demail">Doctor Email Address</label>
-                    <input type="email" id="demail" name="demail" placeholder="doctor@example.com" required>
-                </div>
-                <button type="submit" name="send_token" class="btn-primary">Generate Reset Link</button>
-            </form>
+            <ol class="reset-steps">
+                <?php foreach ([1 => 'Your email', 2 => 'New password', 3 => 'Done'] as $n => $label): ?>
+                    <li class="<?= $step > $n ? 'is-done' : ($step === $n ? 'is-current' : '') ?>"><?= $label ?></li>
+                <?php endforeach; ?>
+            </ol>
 
-        <?php elseif ($step === 2): ?>
-            <form method="POST" action="forgotPassword.php">
-                <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
-                <div class="input-wrap">
-                    <label for="new_password">New Password</label>
-                    <input type="password" id="new_password" name="new_password" placeholder="At least 6 characters" required minlength="6">
-                </div>
-                <div class="input-wrap">
-                    <label for="confirm_password">Confirm Password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat your new password" required minlength="6">
-                </div>
-                <button type="submit" name="reset_password" class="btn-primary">Reset Password</button>
-            </form>
+            <?php if ($message): ?>
+                <div class="notice <?= $msgType === 'success' ? 'notice-ok' : 'notice-bad' ?>"><?= $message ?></div>
+            <?php endif; ?>
 
-        <?php elseif ($step === 3): ?>
-            <div class="success-icon">✅</div>
-        <?php endif; ?>
+            <?php if ($step === 1): ?>
+                <form method="POST" action="forgotPassword.php">
+                    <div class="field">
+                        <label for="demail">Your email address</label>
+                        <input type="email" id="demail" name="demail" placeholder="doctor@example.com" required autocomplete="email">
+                    </div>
+                    <button type="submit" name="send_token" class="btn btn-primary btn-block">Send reset link</button>
+                </form>
 
-        <a href="doctorLogin.php" class="back-link">← Back to Sign In</a>
+            <?php elseif ($step === 2): ?>
+                <form method="POST" action="forgotPassword.php">
+                    <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
+                    <div class="field">
+                        <label for="new_password">New password</label>
+                        <input type="password" id="new_password" name="new_password" placeholder="At least 6 characters" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <div class="field">
+                        <label for="confirm_password">Confirm new password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat your new password" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <button type="submit" name="reset_password" class="btn btn-primary btn-block">Reset password</button>
+                </form>
+
+            <?php elseif ($step === 3): ?>
+                <div class="done-icon" aria-hidden="true">&#10003;</div>
+                <a href="doctorLogin.php" class="btn btn-primary btn-block">Sign in</a>
+            <?php endif; ?>
+
+            <a href="doctorLogin.php" class="auth-back">&larr; Back to sign in</a>
+        </div>
     </div>
-</div>
+</main>
 </body>
 </html>

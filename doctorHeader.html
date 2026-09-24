@@ -1,7 +1,7 @@
 <link rel="stylesheet" href="../css/header.css">
 
 <!-- Header -->
-<header class="site-header">
+<header class="site-header site-header--sticky">
     <a class="site-header__logo" href="index.php"><img src="../images/logoo5.png" alt="DaaktarSahab home"></a>
 
     <button type="button" class="site-header__toggle" aria-controls="siteMenu" aria-expanded="false" aria-label="Menu">
@@ -10,10 +10,14 @@
 
     <div class="site-header__menu" id="siteMenu">
         <nav class="site-nav" aria-label="Main">
-            <a href="index.php">Home</a>
-            <a href="patients.php">Patients</a>
-            <a href="schedule.php">Schedules</a>
-            <a href="appointment.php">My Appointments</a>
+            <?php
+                // Marks the link for the page being viewed, for screen readers and styling.
+                $headerLinks = ['index.php' => 'Home', 'patients.php' => 'Patients', 'schedule.php' => 'Schedules', 'appointment.php' => 'My Appointments'];
+                $headerPage = basename($_SERVER['SCRIPT_NAME']);
+                foreach ($headerLinks as $href => $label) {
+                    echo '<a href="' . $href . '"' . ($href === $headerPage ? ' aria-current="page"' : '') . '>' . $label . '</a>';
+                }
+            ?>
         </nav>
 
         <div class="site-account">
@@ -23,11 +27,10 @@
                 </button>
                 <p class="account-menu__heading">Your account</p>
                 <ul class="account-menu__list">
-                    <li><a href="updateProfile.php"><strong><?php echo htmlspecialchars($username) ?></strong></a></li>
+                    <li><a href="updateProfile.php"><strong>Dr. <?php echo htmlspecialchars($username) ?></strong></a></li>
                     <li><a href="appointment.php">My Appointments</a></li>
-                    <li><a href="#">My Order History</a></li>
-                    <li><a href="#">My Questions</a></li>
-                    <li><a href="#">My Medical Reports</a></li>
+                    <li><a href="patients.php">My Patients</a></li>
+                    <li><a href="schedule.php">My Sessions</a></li>
                 </ul>
             </div>
             <a class="logout-btn" href="../logout.php">Logout</a>

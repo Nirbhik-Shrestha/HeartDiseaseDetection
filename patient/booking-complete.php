@@ -101,6 +101,23 @@ if ($tid > 0) {
     $error_message = "Please choose a time slot.";
 }
 
+// Details for the confirmation card.
+$booked = null;
+if ($booking_successful) {
+    $stmt = $con->prepare(
+        "SELECT t.start_time, t.end_time, s.sdate, d.dname, sp.sname
+           FROM timeslot t
+           JOIN schedule s     ON s.scid = t.scid
+           JOIN doctors d      ON d.did = s.did
+           JOIN specialties sp ON sp.spid = d.spid
+          WHERE t.tid = ?"
+    );
+    $stmt->bind_param("i", $tid);
+    $stmt->execute();
+    $booked = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+}
+
 $con->close();
 ?>
 
@@ -109,61 +126,88 @@ $con->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Confirmation</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <title><?= $booking_successful ? 'Appointment Booked' : 'Booking Not Completed' ?> - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
     <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+        .result-panel {
+            max-width: 640px;
+            margin: 0 auto 24px;
         }
-        .container {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            width: 80%;
-            max-width: 500px;
+
+        .result-icon {
+            display: grid;
+            place-items: center;
+            width: 56px;
+            height: 56px;
+            margin: 0 0 16px;
+            border-radius: 50%;
+            font-size: 26px;
+            font-weight: 700;
         }
-        h2 {
-            color: #00a99d;
+
+        .result-icon.ok  { background: #e7f7ee; color: #1f7a4a; box-shadow: 0 0 0 6px #f3fbf6; }
+        .result-icon.bad { background: #fdecec; color: #b42318; box-shadow: 0 0 0 6px #fff6f6; }
+
+        .result-panel h2 {
+            margin: 0 0 6px;
+            color: #12304a;
+            font-size: 24px;
         }
-        p {
-            color: #666;
-            font-size: 1.1em;
+
+        .result-panel > p {
+            margin: 0 0 20px;
+            color: #3d566b;
+            font-size: 16.5px;
+            line-height: 1.55;
         }
-        a {
-            text-decoration: none;
-            color: #fff;
-            background-color: #00a99d;
-            padding: 10px 20px;
-            border-radius: 5px;
-            display: inline-block;
-            margin-top: 20px;
-        }
-        a:hover {
-            background-color: #007f7a;
+
+        .result-panel .detail-list {
+            margin: 0 0 24px;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <?php if ($booking_successful): ?>
-            <h2>Booking Successful!</h2>
-            <p>Your appointment has been booked successfully.</p>
-            <p><strong>Date:</strong> <?php echo htmlspecialchars($adate); ?></p>
-        <?php else: ?>
-            <h2>Booking Failed</h2>
-            <!-- <p>There was an error booking your appointment. Please try again later.</p> -->
-            <p><?php echo htmlspecialchars($error_message); ?></p>
-        <?php endif; ?>
-        <a href="schedule.php">Back to Schedule</a>
+<body class="site-page">
+
+<?php include('../patientHeader.html'); ?>
+
+<section class="page-hero">
+    <div class="page-hero__inner">
+        <span class="page-hero__eyebrow">Booking</span>
+        <h1><?= $booking_successful ? 'You are booked in' : 'Booking not completed' ?></h1>
+        <p><?= $booking_successful ? 'Your appointment is confirmed. You can find it any time under My Appointments.' : 'Nothing was booked. You can pick another slot or session.' ?></p>
     </div>
+</section>
+
+<main class="page-body">
+    <section class="panel result-panel">
+        <?php if ($booking_successful): ?>
+            <div class="result-icon ok" aria-hidden="true">&#10003;</div>
+            <h2>Appointment booked</h2>
+            <p>Want the doctor to see your heart check before the visit? You can share it from My Appointments.</p>
+            <?php if ($booked): ?>
+                <ul class="detail-list">
+                    <li><span>Doctor</span><strong>Dr. <?= htmlspecialchars($booked['dname']) ?></strong></li>
+                    <li><span>Specialty</span><strong><?= htmlspecialchars($booked['sname']) ?></strong></li>
+                    <li><span>Date</span><strong><?= date('l j F Y', strtotime($booked['sdate'])) ?></strong></li>
+                    <li><span>Time</span><strong><?= date('g:i A', strtotime($booked['start_time'])) ?> - <?= date('g:i A', strtotime($booked['end_time'])) ?></strong></li>
+                </ul>
+            <?php endif; ?>
+            <div class="btn-row">
+                <a href="appointment.php" class="btn btn-primary">View my appointments</a>
+                <a href="schedule.php" class="btn btn-light">Back to sessions</a>
+            </div>
+        <?php else: ?>
+            <div class="result-icon bad" aria-hidden="true">!</div>
+            <h2>We couldn't book that slot</h2>
+            <p><?= htmlspecialchars($error_message) ?></p>
+            <div class="btn-row">
+                <a href="schedule.php" class="btn btn-primary">Back to sessions</a>
+                <a href="appointment.php" class="btn btn-light">My appointments</a>
+            </div>
+        <?php endif; ?>
+    </section>
+</main>
+
+<?php include('../footer.html'); ?>
 </body>
 </html>

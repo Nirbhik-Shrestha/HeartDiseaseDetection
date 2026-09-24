@@ -1,140 +1,87 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+include_once '../connection.php';
+include_once '../auth.php';
+appSessionStart();
 
-	include_once '../connection.php';
-	include_once '../auth.php';
-	appSessionStart();
+// Already signed in as a doctor: straight to the dashboard.
+if ($_SERVER['REQUEST_METHOD'] === 'GET'
+    && isset($_SESSION['role']) && $_SESSION['role'] === 'doctor' && !empty($_SESSION['user'])) {
+    header('Location: index.php');
+    exit();
+}
 
-	$message = '';
-    $error='<label for="promter" class="form-label"></label>';
+$errorText = '';
+$email = '';
 
-	if(isset($_POST['login'])){
+if (isset($_POST['login'])) {
+    $email    = isset($_POST['demail']) ? trim((string)$_POST['demail']) : '';
+    $password = isset($_POST['dpassword']) ? (string)$_POST['dpassword'] : '';
 
-        $email    = $_POST['demail'];
-        $password = $_POST['dpassword'];
-        
-        if (empty($email) || empty($password)) {
-            echo 'Email or Password is empty!';
-            exit;
-        } else {
-			if (verifyLogin($con, 'doctor', $email, $password)) {
-				loginAs('doctor', $email);
-				header('location: index.php');
-				exit();
-			} else {
-				$error = '<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
-			}
-		}
-	} else {
-        // $error='<label for="promter" class="form-label">Email or Password is empty!</label>';
+    if ($email === '' || $password === '') {
+        $errorText = 'Please enter your email and password.';
+    } elseif (verifyLogin($con, 'doctor', $email, $password)) {
+        loginAs('doctor', $email);
+        header('Location: index.php');
+        exit();
+    } else {
+        $errorText = 'Wrong email or password. Please try again.';
     }
-
+}
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>User Login</title>
-	<style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f6f5f7 url("../images/bg.jpg") no-repeat center center/cover;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            position: relative;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Sign In - DaaktarSahab</title>
+    <link rel="stylesheet" href="../css/site.css">
+    <style>
+        /* The doctor photo instead of the patients' heart image. */
+        .auth-visual.is-doctor {
+            background: #9fd9d8 url("../images/drbanner.jpg") 82% top / cover no-repeat;
         }
 
-        .home-button {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background-color: #36A9AE;
-            border: none;
-            border-radius: 4px;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        .home-button:hover {
-            background-color: #2A8387;
-        }
-
-        .container {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-            width: 350px;
-            overflow: hidden;
-        }
-
-        button, input[type="email"], input[type="password"] {
-            width: 90%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-top: 6px;
-            margin-bottom: 16px;
-            display: block;
-            box-sizing: border-box;
-        }
-
-        .form-container {
-            padding: 20px;
-            text-align: center;
-        }
-
-        .button-25 {
-            background-color: #36A9AE;
-            color: white;
-            border: none;
-            cursor: pointer;
-            width: 150px;
-            padding: 10px;
-            border-radius: 10px;
-        }
-
-        .button-25:hover {
-            background-color: #2A8387;
-        }
-
-        .overlay {
-            background: linear-gradient(to right, #0f6367, #1aa6ac);
-            color: white;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .overlay p {
-            margin: 10px 0;
+        .auth-visual.is-doctor::before {
+            background: linear-gradient(180deg, rgba(234, 247, 251, 0.95) 0%, rgba(234, 247, 251, 0.7) 45%, rgba(234, 247, 251, 0) 80%);
         }
     </style>
 </head>
-<body>
-<a href="../index.php" class="home-button">HOME</a>
-    <div class="container">
-        <div class="overlay">
-            <h1>Welcome Doc!</h1>
-            <p>Please sign in to continue.</p>
-        </div>
-        <div class="form-container">
-            <form action="doctorLogin.php" method="POST" id="loginForm">
-			<?php if (!empty($error)) echo $error; ?>
+<body class="site-page">
 
-                <input type="email" name="demail" placeholder="Email" required>
-                <input type="password" name="dpassword" placeholder="Password" required>
-                <input type="submit" name="login" class="button-25" value="Sign In">
-                <p><a href="forgotPassword.php">Forgot your password?</a></p>
+<main class="auth-page">
+    <div class="auth-card">
+        <div class="auth-visual is-doctor">
+            <div>
+                <a class="auth-visual__logo" href="../index.php"><img src="../images/logoo5.png" alt="DaaktarSahab home"></a>
+                <h2>For doctors</h2>
+                <p>Manage your sessions, review heart checks your patients share and record each visit.</p>
+            </div>
+        </div>
+
+        <div class="auth-form">
+            <h1>Welcome, doctor</h1>
+            <p class="auth-sub">Sign in to your doctor account.</p>
+
+            <?php if ($errorText !== ''): ?>
+                <div class="notice notice-bad" role="alert"><?= htmlspecialchars($errorText) ?></div>
+            <?php endif; ?>
+
+            <form action="doctorLogin.php" method="POST">
+                <div class="field">
+                    <label for="demail">Email</label>
+                    <input type="email" id="demail" name="demail" value="<?= htmlspecialchars($email) ?>" required autocomplete="email">
+                </div>
+                <div class="field">
+                    <label for="dpassword">Password</label>
+                    <input type="password" id="dpassword" name="dpassword" required autocomplete="current-password">
+                </div>
+                <p style="margin: -6px 0 18px; font-size: 15px"><a href="forgotPassword.php">Forgot your password?</a></p>
+                <button type="submit" name="login" class="btn btn-primary btn-block">Sign in</button>
             </form>
+
+            <a class="auth-back" href="../index.php">&larr; Back to DaaktarSahab</a>
         </div>
     </div>
+</main>
 </body>
 </html>

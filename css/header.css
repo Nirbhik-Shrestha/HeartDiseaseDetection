@@ -123,16 +123,18 @@
     border-radius: 50%;
 }
 
+/* Same look as the portal's Logout button. */
 .account-menu__btn--text {
-    padding: 9px 20px;
-    border-radius: 6px;
-    background: #1c9fad;
+    padding: 12px 22px;
+    border-radius: 8px;
+    background: #00a99d;
     color: #fff;
-    font-size: 17px;
+    font-size: 15px;
+    transition: background 0.2s;
 }
 
 .account-menu__btn--text:hover {
-    background: #0d867c;
+    background: #007d73;
 }
 
 .account-menu__list {
@@ -201,10 +203,11 @@
     background: #007d73;
 }
 
-/* ---- Patient portal look ------------------------------------------------ */
+/* ---- Sticky look (patient portal and public site) ----------------------- */
 /* Sticky, slightly translucent bar with pill-shaped links; the current page's
-   link (aria-current, set in patientHeader.html) is highlighted. */
-.site-header--patient {
+   link (aria-current, set in patientHeader.html / mainHeader.html) is
+   highlighted. */
+.site-header--sticky {
     position: sticky;
     top: 0;
     z-index: 50;
@@ -216,16 +219,16 @@
 }
 
 /* 64px: this logo file has a lot of empty space around the mark. */
-.site-header--patient .site-header__logo img {
+.site-header--sticky .site-header__logo img {
     height: 64px;
     width: auto;
 }
 
-.site-header--patient .site-nav {
+.site-header--sticky .site-nav {
     gap: 6px;
 }
 
-.site-header--patient .site-nav a {
+.site-header--sticky .site-nav a {
     padding: 8px 14px;
     border-radius: 8px;
     font-size: 17px;
@@ -233,34 +236,35 @@
     color: #3d566b;
 }
 
-.site-header--patient .site-nav a:hover {
+.site-header--sticky .site-nav a:hover {
     background: #e6f6f4;
     color: #00786f;
 }
 
-.site-header--patient .site-nav a[aria-current="page"] {
+.site-header--sticky .site-nav a[aria-current="page"] {
     background: #e6f6f4;
     color: #00786f;
     font-weight: 600;
 }
 
-.site-header--patient .account-menu__btn {
+/* The avatar button; the public header's text "Login" button keeps its size. */
+.site-header--sticky .account-menu__btn:not(.account-menu__btn--text) {
     width: 40px;
     height: 40px;
 }
 
 /* ---- Narrow screens ---------------------------------------------------- */
 @media (max-width: 900px) {
-    .site-header--patient {
+    .site-header--sticky {
         padding: 10px 16px;
     }
 
-    .site-header--patient .site-header__logo img {
+    .site-header--sticky .site-header__logo img {
         height: 52px;
     }
 
     /* Stacked menu rows rather than pill links. */
-    .site-header--patient .site-nav a {
+    .site-header--sticky .site-nav a {
         padding: 12px 4px;
         border-radius: 0;
         font-size: 18px;
